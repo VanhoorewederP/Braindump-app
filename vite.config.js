@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './', // Zorgt voor relatieve paden op GitHub Pages
+  base: '/Braindump-app/', // Zorgt voor relatieve paden op GitHub Pages
   plugins: [
     react(),
     tailwindcss(),
