@@ -20,8 +20,8 @@ export default defineConfig({
         theme_color: '#06B6D4',
         background_color: '#F8FAFC',
         display: 'standalone',
-        start_url: '/braindump-app/',
-        scope: '/braindump-app/',
+        start_url: '/Braindump-app/',
+        scope: '/Braindump-app/',
         orientation: 'portrait',
         icons: [
           {
