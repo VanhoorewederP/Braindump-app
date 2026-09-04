@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Verberg het standaard Windows/Edge wachtwoord-oogje */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
