@@ -1,46 +1,40 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// https://vite.dev/config/
 export default defineConfig({
-  base: '/Braindump-app/', // Zorgt voor relatieve paden op GitHub Pages
+  base: '/Braindump-app/',
   plugins: [
     react(),
-    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'assets/*'],
+      includeAssets: ['pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Braindump',
         short_name: 'Braindump',
-        description: 'Mijn persoonlijke productiviteits- en planning vault',
-        theme_color: '#06B6D4',
+        description: 'Persoonlijke productiviteits- en planning vault',
+        theme_color: '#0891b2',
         background_color: '#F8FAFC',
         display: 'standalone',
         start_url: '/Braindump-app/',
         scope: '/Braindump-app/',
-        id: '/Braindump-app/',
-        orientation: 'portrait',
         icons: [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
+            type: 'image/png'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
+            type: 'image/png'
           }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        navigateFallback: '/Braindump-app/index.html',
+        globPatterns: ['**/*.{js,css,html,png,svg}']
       }
     })
   ],

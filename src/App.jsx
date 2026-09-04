@@ -71,7 +71,7 @@ import {
   Check
 } from 'lucide-react';
 
-const isTauriDesktop = typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
+const isTauriDesktop = typeof window !== 'undefined' && (Boolean(window.__TAURI_INTERNALS__) || Boolean(window.__TAURI__));
 const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 const handleDragStart = async (e) => {
