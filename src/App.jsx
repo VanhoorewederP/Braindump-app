@@ -310,6 +310,21 @@ export default function App() {
     ];
   });
 
+  const moveQueuedTask = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= queuedTodayTasks.length) return;
+
+    const reordered = [...queuedTodayTasks];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const updatedTasks = tasks.map(t => {
+      const idx = reordered.findIndex(rt => rt.id === t.id);
+      return idx > -1 ? { ...t, order: idx + 1 } : t;
+    });
+
+    setTasks(updatedTasks);
+  };
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Debugging
@@ -1781,9 +1796,34 @@ export default function App() {
                       const completedSubtasks = (task.subtasks || []).filter(st => st.done).length;
 
                       return (
-                        <div key={task.id} className="flex items-start gap-2.5">
-                          <div className="w-5 text-right font-mono text-xs font-black text-slate-400 shrink-0 mt-3">
-                            {index + 1}.
+                        <div key={task.id} className="flex items-center gap-2">
+                          {/* Linkerkolom: nummer op desktop, omhoog/omlaag knopjes + nummer op mobiel */}
+                          <div className="flex flex-col items-center justify-center shrink-0 w-7">
+                            <div className="font-mono text-xs font-black text-slate-400">
+                              {index + 1}.
+                            </div>
+
+                            {/* ✅ HIER KOMEN DE MOBIELE KNOPPEN (enkel zichtbaar op mobiel via md:hidden): */}
+                            <div className="flex flex-col gap-0.5 md:hidden mt-1">
+                              <button 
+                                type="button"
+                                disabled={index === 0}
+                                onClick={(e) => { e.stopPropagation(); moveQueuedTask(index, -1); }}
+                                className="p-1 rounded bg-slate-100 disabled:opacity-20 text-slate-600 active:bg-slate-200 cursor-pointer"
+                                title="Verplaats omhoog"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                type="button"
+                                disabled={index === queuedTodayTasks.length - 1}
+                                onClick={(e) => { e.stopPropagation(); moveQueuedTask(index, 1); }}
+                                className="p-1 rounded bg-slate-100 disabled:opacity-20 text-slate-600 active:bg-slate-200 cursor-pointer"
+                                title="Verplaats omlaag"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
 
                           <div 
@@ -1884,272 +1924,90 @@ export default function App() {
             </div>
           )}
 
-          {/* 2. SCHOOL & PRIVÉ WORKSPACE */}
+{/* 2. SCHOOL & PRIVÉ WORKSPACE */}
           {(activeTab === 'school' || activeTab === 'private') && (
             <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-6 space-y-3 md:space-y-4">
               
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    {activeTab === 'school' ? 'School Dashboard' : 'Privé & Braindump'}
+              {/* BOVENBALK: TITEL EN EVEN GROTE KNOPPEN */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1 shrink-0">
+                <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
+                  <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight truncate">
+                    {activeTab === 'school' ? 'School' : 'Privé & Braindump'}
                   </h2>
-                  
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 md:hidden">
+                    {MONTH_NAMES[currentCalendarAnchorDate.getMonth()]} {currentCalendarAnchorDate.getFullYear()}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
                   <button 
+                    type="button"
                     onClick={() => setShowCategoryManager(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-xl shadow-xs"
+                    className="flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-xl shadow-xs h-9 cursor-pointer"
                   >
-                    <Settings2 className="w-3.5 h-3.5 text-cyan-600" />
-                    {activeTab === 'school' ? 'Vakken Beheren' : 'Lijsten Beheren'}
+                    <Settings2 className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                    <span className="truncate">{activeTab === 'school' ? 'Vakken' : 'Lijsten'}</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => openTaskModal(null)}
+                    className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-cyan-500/20 h-9 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Nieuwe Taak</span>
                   </button>
                 </div>
-
-                <button 
-                  onClick={() => openTaskModal(null)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-cyan-500/20 transition-all hover:scale-102"
-                >
-                  <Plus className="w-4 h-4" /> Taak Toevoegen
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono font-medium">Ctrl+N</span>
-                </button>
               </div>
 
-              <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden gap-4 md:gap-5 pb-16 md:pb-0">                
-                {/* Kalender */}
-                <div 
-                  onWheel={(e) => handleSmartCalendarWheel(e, false)}
-                  className="w-full md:flex-1 bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 p-3 md:p-4 shadow-xs flex flex-col min-h-[420px] md:min-h-0 shrink-0 md:shrink select-none"
-                >
-                  <div className="flex flex-wrap items-center justify-between border-b border-slate-200/80 pb-2 mb-2 gap-2 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-cyan-600 shrink-0" />
-                      <span className="text-xs md:text-sm font-black text-slate-900 capitalize truncate max-w-[140px] md:max-w-none">
-                        {calendarHeaderTitle}
-                      </span>
-                    </div>
+              {/* CONTAINER VOOR DE AGENDA & TAKEN */}
+              <div className="flex-1 flex flex-col md:flex-row overflow-hidden gap-4 md:gap-5">
 
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextScope = currentScope === 'both' ? (activeTab === 'school' ? 'school' : 'private') : 'both';
-                          if (activeTab === 'school') setSchoolCalScope(nextScope);
-                          else setPrivateCalScope(nextScope);
-                        }}
-                        className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-xs"
-                      >
-                        <Filter className="w-3 h-3 text-cyan-600" />
-                        <span>{currentScope === 'both' ? 'Alles' : activeTab === 'school' ? 'Enkel School' : 'Enkel Privé'}</span>
-                      </button>
-
-                      <div className="flex bg-slate-100 p-0.5 rounded-xl text-[11px] md:text-xs font-bold">
-                        <button type="button" onClick={() => setCurrentCalendarViewMode('week')} className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg transition ${currentCalendarViewMode === 'week' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Week</button>
-                        <button type="button" onClick={() => setCurrentCalendarViewMode('month')} className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg transition ${currentCalendarViewMode === 'month' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Maand</button>
-                        <button type="button" onClick={() => setCurrentCalendarViewMode('custom')} className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg transition ${currentCalendarViewMode === 'custom' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Custom</button>
-                      </div>
-
-                      {currentCalendarViewMode !== 'custom' ? (
-                        <div className="flex items-center gap-0.5 pl-1.5 border-l border-slate-200">
-                          <button type="button" onClick={() => shiftCalendar(-1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"><ChevronLeft className="w-4 h-4" /></button>
-                          <button type="button" onClick={() => setCurrentCalendarAnchorDate(new Date('2026-09-01T12:00:00'))} className="px-1.5 py-0.5 text-[11px] md:text-xs font-bold text-cyan-600 hover:bg-cyan-50 rounded-lg">Vandaag</button>
-                          <button type="button" onClick={() => shiftCalendar(1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"><ChevronRight className="w-4 h-4" /></button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 pl-1.5 border-l border-slate-200 text-xs">
-                          <input type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5 font-mono text-[10px]" />
-                          <span className="text-slate-400 text-[10px]">tot</span>
-                          <input type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5 font-mono text-[10px]" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dagnamen: automatisch Ma, Di op mobiel en volledig op desktop */}
-                  <div className="grid grid-cols-7 gap-1 md:gap-2 mb-1.5 px-0.5 shrink-0">
-                    {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((d, i) => (
-                      <div key={d} className="text-center font-black text-[10px] md:text-[11px] text-slate-400 uppercase tracking-wider">
-                        <span className="md:hidden">{d}</span>
-                        <span className="hidden md:inline">{['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'][i]}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex-1 flex flex-col gap-2 overflow-hidden">
-                    {weekRows.map((weekDays, weekIdx) => {
-                      const { totalSlots, placedBanners } = layoutMultiDayBannersForWeek(weekDays);
-                      const bannerHeight = 22;
-                      const bannerGap = 3;
-                      const topOffset = 31;
-                      const reservedHeaderPadding = totalSlots > 0 ? (topOffset + (totalSlots * (bannerHeight + bannerGap)) + 4) : topOffset;
-
-                      return (
-                        <div key={weekIdx} className="flex-1 flex flex-col min-h-0 relative">
-                          {placedBanners.map(({ task, startIndex, endIndex, slotIndex }) => {
-                            const cat = categories.find(c => c.id === task.categoryId);
-                            const barColor = cat ? cat.color : '#0EA5E9';
-                            const spanCount = (endIndex - startIndex) + 1;
-                            const bannerTop = topOffset + (slotIndex * (bannerHeight + bannerGap));
-
-                            return (
-                              <div 
-                                key={`${task.id}-${weekIdx}`}
-                                onClick={() => openTaskModal(task)}
-                                className="absolute z-20 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer flex items-center px-2.5 truncate transition-transform hover:scale-[1.003]"
-                                style={{
-                                  backgroundColor: barColor,
-                                  top: `${bannerTop}px`,
-                                  height: `${bannerHeight}px`,
-                                  left: `calc(${startIndex} * ((100% - 48px) / 7 + 8px))`,
-                                  width: `calc(${spanCount} * ((100% - 48px) / 7) + ${(spanCount - 1) * 8}px)`
-                                }}
-                                title={`${task.title} (${isoToDutch(task.date)} - ${isoToDutch(task.endDate)})`}
-                              >
-                                <span className="truncate flex items-center gap-1.5 leading-none">
-                                  <span className="text-amber-300">★</span>
-                                  <span className="truncate font-medium">{task.title}</span>
-                                </span>
-                              </div>
-                            );
-                          })}
-
-                          <div className="grid grid-cols-7 gap-2 flex-1 min-h-0">
-                            {weekDays.map(dateStr => {
-                              const d = parseIsoString(dateStr);
-                              const isCurrentMonth = d.getMonth() === currentCalendarAnchorDate.getMonth();
-                              
-                              const dayTasks = calendarTasks
-                                .filter(t => isTaskOnDate(t, dateStr) && !isMultiDayTask(t))
-                                .sort((a, b) => {
-                                  if (a.completed !== b.completed) return a.completed ? -1 : 1;
-                                  return (a.order || 0) - (b.order || 0);
-                                });
-
-                              const isToday = dateStr === todayStr;
-
-                              return (
-                                <div 
-                                  key={dateStr}
-                                  onDragOver={(e) => e.preventDefault()}
-                                  onDrop={() => handleDragEndCalendarReorder(dateStr)}
-                                  className={`p-2 rounded-2xl border flex flex-col justify-between transition-all overflow-hidden relative ${isToday ? 'bg-cyan-50/70 border-cyan-300 ring-1 ring-cyan-400/30' : !isCurrentMonth && currentCalendarViewMode === 'month' ? 'bg-slate-50/30 border-slate-100 opacity-40' : 'bg-slate-50/60 border-slate-200/70 hover:border-cyan-300'}`}
-                                >
-                                  <div className="flex items-center justify-between border-b border-slate-200/50 pb-0.5 mb-1 shrink-0">
-                                    <span className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded-md ${isToday ? 'bg-cyan-600 text-white' : 'text-slate-600'}`}>
-                                      {d.getDate()} {currentCalendarViewMode !== 'month' ? `/${d.getMonth() + 1}` : ''}
-                                    </span>
-                                  </div>
-
-                                  <div 
-                                    style={{ paddingTop: `${Math.max(0, reservedHeaderPadding - topOffset)}px` }}
-                                    className="flex-1 min-h-0 flex flex-col overflow-hidden"
-                                  >
-                                    <div 
-                                      onWheel={(e) => {
-                                        const isScrollable = e.currentTarget.scrollHeight > e.currentTarget.clientHeight;
-                                        if (isScrollable) e.stopPropagation();
-                                      }}
-                                      className="space-y-1.5 flex-1 overflow-y-auto pr-0.5"
-                                    >
-                                      {dayTasks.map(t => {
-                                        const cat = categories.find(c => c.id === t.categoryId);
-                                        const isComp = t.completed;
-                                        
-                                        if (currentCalendarViewMode === 'month') {
-                                          return (
-                                            <div 
-                                              key={t.id}
-                                              draggable
-                                              onDragStart={() => setDraggedTaskId(t.id)}
-                                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
-                                              onClick={() => openTaskModal(t)}
-                                              className={`px-1.5 py-0.5 rounded-lg border shadow-2xs cursor-grab active:cursor-grabbing hover:border-cyan-400 transition-all flex items-center gap-1 bg-white border-slate-200 ${isComp ? 'opacity-50 line-through bg-emerald-50/40' : ''}`}
-                                              style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
-                                            >
-                                              <button 
-                                                onClick={(e) => { e.stopPropagation(); isComp ? unmarkComplete(t.id) : markComplete(t.id); }}
-                                                className="text-slate-400 hover:text-cyan-600"
-                                                title={isComp ? "Heropen taak" : "Voltooi taak"}
-                                              >
-                                                {isComp ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> : <Circle className="w-2.5 h-2.5" />}
-                                              </button>
-                                              {t.status === 'play' && !isComp && <Play className="w-2 h-2 fill-cyan-600 text-cyan-600 shrink-0" />}
-                                              {t.status === 'pause' && !isComp && <Pause className="w-2 h-2 fill-amber-600 text-amber-600 shrink-0" />}
-                                              <span className="text-[10px] font-bold text-slate-800 truncate leading-tight">
-                                                {t.title}
-                                              </span>
-                                            </div>
-                                          );
-                                        }
-
-                                        return (
-                                          <div 
-                                            key={t.id}
-                                            draggable
-                                            onDragStart={() => setDraggedTaskId(t.id)}
-                                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
-                                            onClick={() => openTaskModal(t)}
-                                            className={`p-2.5 border shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-left space-y-1.5 rounded-xl bg-white border-slate-200 ${isComp ? 'opacity-50 bg-emerald-50/30' : ''}`}
-                                            style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
-                                          >
-                                            <div className="flex items-center gap-1.5">
-                                              <button 
-                                                onClick={(e) => { e.stopPropagation(); isComp ? unmarkComplete(t.id) : markComplete(t.id); }}
-                                                className="text-slate-300 hover:text-cyan-600"
-                                                title={isComp ? "Heropen taak" : "Voltooi taak"}
-                                              >
-                                                {isComp ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Circle className="w-4 h-4" />}
-                                              </button>
-                                              {t.status === 'play' && !isComp && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
-                                              {t.status === 'pause' && !isComp && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
-                                              <p className={`text-xs font-bold text-slate-800 truncate flex-1 ${isComp ? 'line-through text-slate-400' : ''}`}>
-                                                {t.title}
-                                              </p>
-                                            </div>
-                                            
-                                            <div className="flex items-center justify-between gap-1">
-                                              {cat ? renderCategoryBadge(cat) : <div />}
-                                              {t.secondsSpent > 0 && (
-                                                <span className="font-mono text-[10px] text-slate-400 shrink-0">{formatTime(t.secondsSpent)}</span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Takenkolom */}
-                <div className="w-full md:w-80 flex flex-col bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 p-4 shadow-xs space-y-4 overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-600" />
-                      <span className="font-extrabold text-xs text-slate-800">Taken Overzicht</span>
-                    </div>
-
-                    <select 
-                      value={currentTaskSortMode}
-                      onChange={(e) => setCurrentTaskSortMode(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-600 focus:outline-none"
+                {/* ========================================================= */}
+                {/* A. MOBIELE GEÏNTEGREERDE TIJDLIN (ENKEL OP MOBIEL)        */}
+                {/* ========================================================= */}
+                <div className="flex md:hidden flex-1 flex-col overflow-hidden bg-white/95 rounded-3xl border border-slate-200/80 p-3 shadow-xs space-y-3">
+                  
+                  {/* Mobiele toolbar met filters en datumknoppen */}
+                  <div className="flex items-center justify-between gap-1 border-b border-slate-100 pb-2.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextScope = currentScope === 'both' ? (activeTab === 'school' ? 'school' : 'private') : 'both';
+                        if (activeTab === 'school') setSchoolCalScope(nextScope);
+                        else setPrivateCalScope(nextScope);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
                     >
-                      <option value="category">Per {activeTab === 'school' ? 'Vak' : 'Lijst'}</option>
-                      <option value="date">Op Datum</option>
-                    </select>
+                      <Filter className="w-3.5 h-3.5 text-cyan-600" />
+                      <span>{currentScope === 'both' ? 'Alles' : activeTab === 'school' ? 'School' : 'Privé'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={toggleCurrentShowCompleted}
+                      className={`p-1.5 rounded-xl border text-xs font-bold cursor-pointer ${currentShowCompleted ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                      title="Toon/verberg voltooide taken"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                    </button>
+
+                    <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-xl border border-slate-200">
+                      <button type="button" onClick={() => shiftCalendar(-1)} className="p-1 text-slate-600 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => setCurrentCalendarAnchorDate(new Date())} className="px-2 py-0.5 text-xs font-bold text-cyan-600 cursor-pointer">Vandaag</button>
+                      <button type="button" onClick={() => shiftCalendar(1)} className="p-1 text-slate-600 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
+                    </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                    
-                    {currentTaskSortMode === 'date' && unplannedTasks.length > 0 && (
-                      <div className="p-3 bg-cyan-50/50 rounded-2xl border border-cyan-200/60 space-y-2">
+                  {/* Verticale agenda lijst */}
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
+                    {/* Ongeplande taken */}
+                    {unplannedTasks.length > 0 && (
+                      <div className="p-2.5 bg-cyan-50/60 rounded-2xl border border-cyan-200/70 space-y-2">
                         <button 
+                          type="button"
                           onClick={() => setShowUnplannedTasks(!showUnplannedTasks)}
-                          className="w-full flex items-center justify-between text-xs font-black text-cyan-900"
+                          className="w-full flex items-center justify-between text-xs font-bold text-cyan-900 cursor-pointer"
                         >
                           <span className="flex items-center gap-1.5">
                             <CalendarOff className="w-3.5 h-3.5 text-cyan-600" />
@@ -2165,17 +2023,12 @@ export default function App() {
                               return (
                                 <div 
                                   key={task.id}
-                                  draggable
-                                  onDragStart={() => setDraggedTaskId(task.id)}
                                   onClick={() => openTaskModal(task)}
-                                  className="p-2 rounded-xl bg-white border border-cyan-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow transition-all space-y-1"
-                                  style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                  className="p-2.5 rounded-xl bg-white border border-cyan-200 shadow-2xs flex items-center justify-between text-xs cursor-pointer"
+                                  style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
                                 >
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-bold text-slate-800 truncate flex-1">{task.title}</h4>
-                                    {cat && renderCategoryBadge(cat)}
-                                  </div>
-                                  <div className="text-[10px] text-cyan-700 font-medium">Sleep naar kalender om in te plannen ➔</div>
+                                  <span className="font-bold text-slate-800 truncate flex-1 mr-2">{task.title}</span>
+                                  {cat && renderCategoryBadge(cat)}
                                 </div>
                               );
                             })}
@@ -2184,59 +2037,275 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Per Categorie */}
-                    {currentTaskSortMode === 'category' ? (
-                      categories.filter(c => c.type === activeTab && !c.archived).map(cat => {
-                        const catTasks = activeWorkspaceTasks
-                          .filter(t => t.categoryId === cat.id && !t.completed)
-                          .sort((a, b) => (a.order || 0) - (b.order || 0));
+                    {/* Dagenweergave */}
+                    {calendarDays.map(dateStr => {
+                      const d = parseIsoString(dateStr);
+                      const dayName = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'][d.getDay()];
+                      const isToday = dateStr === todayStr;
+                      const dayTasks = calendarTasks.filter(t => isTaskOnDate(t, dateStr) && (!t.completed || currentShowCompleted));
+
+                      return (
+                        <div 
+                          key={dateStr}
+                          className={`p-3 rounded-2xl border transition-all ${isToday ? 'bg-cyan-50/60 border-cyan-300 ring-1 ring-cyan-400/20' : 'bg-slate-50/50 border-slate-200/80'}`}
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-md font-mono text-xs font-black ${isToday ? 'bg-cyan-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                                {d.getDate()} {MONTH_NAMES[d.getMonth()].slice(0, 3)}
+                              </span>
+                              <span className={`text-xs font-bold capitalize ${isToday ? 'text-cyan-800 font-black' : 'text-slate-600'}`}>
+                                {dayName}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {dayTasks.length > 0 ? `${dayTasks.length} taken` : 'Leeg'}
+                            </span>
+                          </div>
+
+                          {dayTasks.length === 0 ? (
+                            <p className="text-[11px] text-slate-300 italic py-1">Geen taken gepland</p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {dayTasks.map(t => {
+                                const cat = categories.find(c => c.id === t.categoryId);
+                                return (
+                                  <div
+                                    key={t.id}
+                                    onClick={() => openTaskModal(t)}
+                                    className={`p-2.5 rounded-xl border bg-white shadow-2xs flex items-center justify-between gap-2 cursor-pointer ${t.completed ? 'opacity-50 bg-emerald-50/30' : ''}`}
+                                    style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); t.completed ? unmarkComplete(t.id) : markComplete(t.id); }} 
+                                        className="text-slate-300 hover:text-cyan-600 shrink-0 cursor-pointer"
+                                      >
+                                        {t.completed ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Circle className="w-4 h-4" />}
+                                      </button>
+                                      <span className={`text-xs font-bold text-slate-800 truncate ${t.completed ? 'line-through text-slate-400' : ''}`}>
+                                        {t.title}
+                                      </span>
+                                    </div>
+                                    {cat && renderCategoryBadge(cat)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ========================================================= */}
+                {/* B. DESKTOP KALENDER + TAKENKOLOM (ONGEWIJZIGD OP DESKTOP) */}
+                {/* ========================================================= */}
+                <div className="hidden md:flex flex-1 overflow-hidden gap-5">
+                  
+                  {/* Desktop Kalender */}
+                  <div 
+                    onWheel={(e) => handleSmartCalendarWheel(e, false)}
+                    className="flex-1 bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 p-4 shadow-xs flex flex-col overflow-hidden select-none"
+                  >
+                    <div className="flex flex-wrap items-center justify-between border-b border-slate-200/80 pb-3 mb-2 gap-2">
+                      <div className="flex items-center gap-3">
+                        <CalendarIcon className="w-4 h-4 text-cyan-600" />
+                        <span className="text-sm font-black text-slate-900 capitalize">
+                          {calendarHeaderTitle}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextScope = currentScope === 'both' ? (activeTab === 'school' ? 'school' : 'private') : 'both';
+                            if (activeTab === 'school') setSchoolCalScope(nextScope);
+                            else setPrivateCalScope(nextScope);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-xs cursor-pointer"
+                          title="Wissel filterweergave"
+                        >
+                          <Filter className="w-3.5 h-3.5 text-cyan-600" />
+                          <span>{currentScope === 'both' ? 'Toon: Alles' : activeTab === 'school' ? 'Toon: Enkel School' : 'Toon: Enkel Privé'}</span>
+                        </button>
+
+                        <div className="flex bg-slate-100 p-0.5 rounded-xl text-xs font-bold">
+                          <button type="button" onClick={() => setCurrentCalendarViewMode('week')} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${currentCalendarViewMode === 'week' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Week</button>
+                          <button type="button" onClick={() => setCurrentCalendarViewMode('month')} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${currentCalendarViewMode === 'month' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Maand</button>
+                          <button type="button" onClick={() => setCurrentCalendarViewMode('custom')} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${currentCalendarViewMode === 'custom' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Custom</button>
+                        </div>
+
+                        {currentCalendarViewMode !== 'custom' ? (
+                          <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+                            <button type="button" onClick={() => shiftCalendar(-1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => setCurrentCalendarAnchorDate(new Date('2026-09-01T12:00:00'))} className="px-2 py-0.5 text-xs font-bold text-cyan-600 hover:bg-cyan-50 rounded-lg cursor-pointer">Vandaag</button>
+                            <button type="button" onClick={() => shiftCalendar(1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 text-xs">
+                            <input type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 font-mono text-[11px]" />
+                            <span className="text-slate-400">tot</span>
+                            <input type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 font-mono text-[11px]" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-2 mb-1.5 px-1">
+                      {['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'].map(d => (
+                        <div key={d} className="text-center font-black text-[11px] text-slate-400 uppercase tracking-wider">
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-2 overflow-hidden">
+                      {weekRows.map((weekDays, weekIdx) => {
+                        const { totalSlots, placedBanners } = layoutMultiDayBannersForWeek(weekDays);
+                        const bannerHeight = 22;
+                        const bannerGap = 3;
+                        const topOffset = 31;
+                        const reservedHeaderPadding = totalSlots > 0 ? (topOffset + (totalSlots * (bannerHeight + bannerGap)) + 4) : topOffset;
 
                         return (
-                          <div key={cat.id} className="space-y-1.5">
-                            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                                <CategoryIcon iconName={cat.icon} className="w-3.5 h-3.5 text-slate-600" />
-                                {cat.name}
-                              </span>
-                              <span className="font-mono text-slate-400 text-[11px]">({catTasks.length})</span>
-                            </div>
+                          <div key={weekIdx} className="flex-1 flex flex-col min-h-0 relative">
+                            {placedBanners.map(({ task, startIndex, endIndex, slotIndex }) => {
+                              const cat = categories.find(c => c.id === task.categoryId);
+                              const barColor = cat ? cat.color : '#0EA5E9';
+                              const spanCount = (endIndex - startIndex) + 1;
+                              const bannerTop = topOffset + (slotIndex * (bannerHeight + bannerGap));
 
-                            <div className="space-y-2">
-                              {catTasks.map(task => {
-                                const badge = formatBadgeDate(task.date);
+                              return (
+                                <div 
+                                  key={`${task.id}-${weekIdx}`}
+                                  onClick={() => openTaskModal(task)}
+                                  className="absolute z-20 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer flex items-center px-2.5 truncate transition-transform hover:scale-[1.003]"
+                                  style={{
+                                    backgroundColor: barColor,
+                                    top: `${bannerTop}px`,
+                                    height: `${bannerHeight}px`,
+                                    left: `calc(${startIndex} * ((100% - 48px) / 7 + 8px))`,
+                                    width: `calc(${spanCount} * ((100% - 48px) / 7) + ${(spanCount - 1) * 8}px)`
+                                  }}
+                                  title={`${task.title} (${isoToDutch(task.date)} - ${isoToDutch(task.endDate)})`}
+                                >
+                                  <span className="truncate flex items-center gap-1.5 leading-none">
+                                    <span className="text-amber-300">★</span>
+                                    <span className="truncate font-medium">{task.title}</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+
+                            <div className="grid grid-cols-7 gap-2 flex-1 min-h-0">
+                              {weekDays.map(dateStr => {
+                                const d = parseIsoString(dateStr);
+                                const isCurrentMonth = d.getMonth() === currentCalendarAnchorDate.getMonth();
+                                const dayTasks = calendarTasks
+                                  .filter(t => isTaskOnDate(t, dateStr) && !isMultiDayTask(t))
+                                  .sort((a, b) => {
+                                    if (a.completed !== b.completed) return a.completed ? -1 : 1;
+                                    return (a.order || 0) - (b.order || 0);
+                                  });
+
+                                const isToday = dateStr === todayStr;
+
                                 return (
                                   <div 
-                                    key={task.id}
-                                    draggable
-                                    onDragStart={() => setDraggedTaskId(task.id)}
-                                    onClick={() => openTaskModal(task)}
-                                    className="p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200"
-                                    style={{ borderLeft: `3px solid ${cat.color}` }}
+                                    key={dateStr}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={() => handleDragEndCalendarReorder(dateStr)}
+                                    className={`p-2 rounded-2xl border flex flex-col justify-between transition-all overflow-hidden relative ${isToday ? 'bg-cyan-50/70 border-cyan-300 ring-1 ring-cyan-400/30' : !isCurrentMonth && currentCalendarViewMode === 'month' ? 'bg-slate-50/30 border-slate-100 opacity-40' : 'bg-slate-50/60 border-slate-200/70 hover:border-cyan-300'}`}
                                   >
-                                    <div className="flex items-center gap-1.5">
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); markComplete(task.id); }} 
-                                        className="text-slate-300 hover:text-cyan-600 transition-colors"
-                                        title="Voltooien"
-                                      >
-                                        <Circle className="w-4 h-4" />
-                                      </button>
-                                      {task.status === 'play' && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
-                                      {task.status === 'pause' && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
-                                      <h4 className="text-xs font-bold text-slate-800 truncate flex-1">{task.title}</h4>
+                                    <div className="flex items-center justify-between border-b border-slate-200/50 pb-0.5 mb-1 shrink-0">
+                                      <span className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded-md ${isToday ? 'bg-cyan-600 text-white' : 'text-slate-600'}`}>
+                                        {d.getDate()} {currentCalendarViewMode !== 'month' ? `/${d.getMonth() + 1}` : ''}
+                                      </span>
                                     </div>
-                                    
-                                    <div className="flex items-center justify-between text-[10px]">
-                                      {typeof badge === 'object' ? (
-                                        <span className="flex items-center gap-1 font-mono font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
-                                          <span className="text-cyan-700 font-black">{badge.day}</span> {badge.dateFormatted}
-                                          {task.endDate && <span className="text-[9px] text-slate-400">tot {isoToDutch(task.endDate)}</span>}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">Ongepland</span>
-                                      )}
-                                      <span className="font-mono text-slate-400">{formatTime(task.secondsSpent)}</span>
+
+                                    <div 
+                                      style={{ paddingTop: `${Math.max(0, reservedHeaderPadding - topOffset)}px` }}
+                                      className="flex-1 min-h-0 flex flex-col overflow-hidden"
+                                    >
+                                      <div 
+                                        onWheel={(e) => {
+                                          const isScrollable = e.currentTarget.scrollHeight > e.currentTarget.clientHeight;
+                                          if (isScrollable) e.stopPropagation();
+                                        }}
+                                        className="space-y-1.5 flex-1 overflow-y-auto pr-0.5"
+                                      >
+                                        {dayTasks.map(t => {
+                                          const cat = categories.find(c => c.id === t.categoryId);
+                                          const isComp = t.completed;
+                                          
+                                          if (currentCalendarViewMode === 'month') {
+                                            return (
+                                              <div 
+                                                key={t.id}
+                                                draggable
+                                                onDragStart={() => setDraggedTaskId(t.id)}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
+                                                onClick={() => openTaskModal(t)}
+                                                className={`px-1.5 py-0.5 rounded-lg border shadow-2xs cursor-grab active:cursor-grabbing hover:border-cyan-400 transition-all flex items-center gap-1 bg-white border-slate-200 ${isComp ? 'opacity-50 line-through bg-emerald-50/40' : ''}`}
+                                                style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                              >
+                                                <button 
+                                                  type="button"
+                                                  onClick={(e) => { e.stopPropagation(); isComp ? unmarkComplete(t.id) : markComplete(t.id); }}
+                                                  className="text-slate-400 hover:text-cyan-600 cursor-pointer"
+                                                  title={isComp ? "Heropen taak" : "Voltooi taak"}
+                                                >
+                                                  {isComp ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> : <Circle className="w-2.5 h-2.5" />}
+                                                </button>
+                                                {t.status === 'play' && !isComp && <Play className="w-2 h-2 fill-cyan-600 text-cyan-600 shrink-0" />}
+                                                {t.status === 'pause' && !isComp && <Pause className="w-2 h-2 fill-amber-600 text-amber-600 shrink-0" />}
+                                                <span className="text-[10px] font-bold text-slate-800 truncate leading-tight">
+                                                  {t.title}
+                                                </span>
+                                              </div>
+                                            );
+                                          }
+
+                                          return (
+                                            <div 
+                                              key={t.id}
+                                              draggable
+                                              onDragStart={() => setDraggedTaskId(t.id)}
+                                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
+                                              onClick={() => openTaskModal(t)}
+                                              className={`p-2.5 border shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-left space-y-1.5 rounded-xl bg-white border-slate-200 ${isComp ? 'opacity-50 bg-emerald-50/30' : ''}`}
+                                              style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                            >
+                                              <div className="flex items-center gap-1.5">
+                                                <button 
+                                                  type="button"
+                                                  onClick={(e) => { e.stopPropagation(); isComp ? unmarkComplete(t.id) : markComplete(t.id); }}
+                                                  className="text-slate-300 hover:text-cyan-600 cursor-pointer"
+                                                  title={isComp ? "Heropen taak" : "Voltooi taak"}
+                                                >
+                                                  {isComp ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Circle className="w-4 h-4" />}
+                                                </button>
+                                                {t.status === 'play' && !isComp && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
+                                                {t.status === 'pause' && !isComp && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
+                                                <p className={`text-xs font-bold text-slate-800 truncate flex-1 ${isComp ? 'line-through text-slate-400' : ''}`}>
+                                                  {t.title}
+                                                </p>
+                                              </div>
+                                              
+                                              <div className="flex items-center justify-between gap-1">
+                                                {cat ? renderCategoryBadge(cat) : <div />}
+                                                {t.secondsSpent > 0 && (
+                                                  <span className="font-mono text-[10px] text-slate-400 shrink-0">{formatTime(t.secondsSpent)}</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   </div>
                                 );
@@ -2244,70 +2313,122 @@ export default function App() {
                             </div>
                           </div>
                         );
-                      })
-                    ) : (
-                      /* Op Datum */
-                      <div className="space-y-4">
-                        {uniqueRelevantDates.map(dateStr => {
-                          const dayTasks = plannedTasks
-                            .filter(t => isTaskOnDate(t, dateStr))
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Desktop Takenkolom */}
+                  <div className="w-80 flex flex-col bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 p-4 shadow-xs space-y-4 overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-600" />
+                        <span className="font-extrabold text-xs text-slate-800">Taken Overzicht</span>
+                      </div>
+
+                      <select 
+                        value={currentTaskSortMode}
+                        onChange={(e) => setCurrentTaskSortMode(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-600 focus:outline-none cursor-pointer"
+                      >
+                        <option value="category">Per {activeTab === 'school' ? 'Vak' : 'Lijst'}</option>
+                        <option value="date">Op Datum</option>
+                      </select>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                      {currentTaskSortMode === 'date' && unplannedTasks.length > 0 && (
+                        <div className="p-3 bg-cyan-50/50 rounded-2xl border border-cyan-200/60 space-y-2">
+                          <button 
+                            type="button"
+                            onClick={() => setShowUnplannedTasks(!showUnplannedTasks)}
+                            className="w-full flex items-center justify-between text-xs font-black text-cyan-900 cursor-pointer"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <CalendarOff className="w-3.5 h-3.5 text-cyan-600" />
+                              Nog Niet Ingepland ({unplannedTasks.length})
+                            </span>
+                            {showUnplannedTasks ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {showUnplannedTasks && (
+                            <div className="space-y-1.5 pt-1">
+                              {unplannedTasks.map(task => {
+                                const cat = categories.find(c => c.id === task.categoryId);
+                                return (
+                                  <div 
+                                    key={task.id}
+                                    draggable
+                                    onDragStart={() => setDraggedTaskId(task.id)}
+                                    onClick={() => openTaskModal(task)}
+                                    className="p-2 rounded-xl bg-white border border-cyan-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow transition-all space-y-1"
+                                    style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="text-xs font-bold text-slate-800 truncate flex-1">{task.title}</h4>
+                                      {cat && renderCategoryBadge(cat)}
+                                    </div>
+                                    <div className="text-[10px] text-cyan-700 font-medium">Sleep naar kalender om in te plannen ➔</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Per Categorie */}
+                      {currentTaskSortMode === 'category' ? (
+                        categories.filter(c => c.type === activeTab && !c.archived).map(cat => {
+                          const catTasks = activeWorkspaceTasks
+                            .filter(t => t.categoryId === cat.id && !t.completed)
                             .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-                          const d = parseIsoString(dateStr);
-                          const dayName = DAY_NAMES[d.getDay()];
-
                           return (
-                            <div key={dateStr} className="space-y-1.5">
-                              <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
-                                <span className="px-2 py-0.5 bg-cyan-600 text-white font-black text-[10px] rounded-md font-mono">
-                                  {dayName}
+                            <div key={cat.id} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                                  <CategoryIcon iconName={cat.icon} className="w-3.5 h-3.5 text-slate-600" />
+                                  {cat.name}
                                 </span>
-                                <span className="font-bold text-xs text-slate-800 font-mono">
-                                  {isoToDutch(dateStr)}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono ml-auto">
-                                  ({dayTasks.length})
-                                </span>
+                                <span className="font-mono text-slate-400 text-[11px]">({catTasks.length})</span>
                               </div>
 
                               <div className="space-y-2">
-                                {dayTasks.map(task => {
-                                  const cat = categories.find(c => c.id === task.categoryId);
-                                  const isMulti = isMultiDayTask(task);
-
+                                {catTasks.map(task => {
+                                  const badge = formatBadgeDate(task.date);
                                   return (
                                     <div 
-                                      key={`${task.id}-${dateStr}`}
+                                      key={task.id}
                                       draggable
                                       onDragStart={() => setDraggedTaskId(task.id)}
                                       onClick={() => openTaskModal(task)}
                                       className="p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200"
-                                      style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                      style={{ borderLeft: `3px solid ${cat.color}` }}
                                     >
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); markComplete(task.id); }} 
-                                            className="text-slate-300 hover:text-cyan-600 transition-colors"
-                                            title="Voltooien op deze datum"
-                                          >
-                                            <Circle className="w-4 h-4" />
-                                          </button>
-                                          {isMulti ? <span className="text-amber-500 font-bold">★</span> : null}
-                                          {task.status === 'play' && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
-                                          {task.status === 'pause' && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
-                                          <h4 className="text-xs font-bold text-slate-800 truncate">{task.title}</h4>
-                                        </div>
-                                        {cat && renderCategoryBadge(cat)}
+                                      <div className="flex items-center gap-1.5">
+                                        <button 
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); markComplete(task.id); }} 
+                                          className="text-slate-300 hover:text-cyan-600 transition-colors cursor-pointer"
+                                          title="Voltooien"
+                                        >
+                                          <Circle className="w-4 h-4" />
+                                        </button>
+                                        {task.status === 'play' && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
+                                        {task.status === 'pause' && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
+                                        <h4 className="text-xs font-bold text-slate-800 truncate flex-1">{task.title}</h4>
                                       </div>
-
-                                      {isMulti && (
-                                        <div className="text-[10px] text-slate-400 font-mono pl-5">
-                                          Loopt van {isoToDutch(task.date)} tot {isoToDutch(task.endDate)}
-                                        </div>
-                                      )}
-
-                                      <div className="flex items-center justify-end text-[10px]">
+                                      
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        {typeof badge === 'object' ? (
+                                          <span className="flex items-center gap-1 font-mono font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
+                                            <span className="text-cyan-700 font-black">{badge.day}</span> {badge.dateFormatted}
+                                            {task.endDate && <span className="text-[9px] text-slate-400">tot {isoToDutch(task.endDate)}</span>}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">Ongepland</span>
+                                        )}
                                         <span className="font-mono text-slate-400">{formatTime(task.secondsSpent)}</span>
                                       </div>
                                     </div>
@@ -2316,60 +2437,138 @@ export default function App() {
                               </div>
                             </div>
                           );
-                        })}
-                      </div>
-                    )}
+                        })
+                      ) : (
+                        /* Op Datum */
+                        <div className="space-y-4">
+                          {uniqueRelevantDates.map(dateStr => {
+                            const dayTasks = plannedTasks
+                              .filter(t => isTaskOnDate(t, dateStr))
+                              .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-                    {/* Voltooide Taken */}
-                    <div className="pt-3 border-t border-slate-100">
-                      <button 
-                        onClick={toggleCurrentShowCompleted}
-                        className="w-full flex items-center justify-between text-xs font-bold text-slate-500 hover:text-slate-800 py-1"
-                      >
-                        <span>Voltooide taken ({allDashboardCompletedTasks.length})</span>
-                        {currentShowCompleted ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
+                            const d = parseIsoString(dateStr);
+                            const dayName = DAY_NAMES[d.getDay()];
 
-                      {currentShowCompleted && (
-                        <div className="space-y-1.5 mt-2 opacity-85">
-                          {visibleDashboardCompletedTasks.map(task => {
-                            const cat = categories.find(c => c.id === task.categoryId);
                             return (
-                              <div 
-                                key={task.id} 
-                                onClick={() => openTaskModal(task)}
-                                className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-500 truncate cursor-pointer flex items-center justify-between hover:bg-white transition"
-                                style={{ borderLeft: `3px solid ${cat ? cat.color : '#10B981'}` }}
-                              >
-                                <div className="flex items-center gap-2 truncate">
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); unmarkComplete(task.id); }}
-                                    className="text-emerald-500 hover:text-emerald-700"
-                                    title="Klik om taak te heropenen"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  </button>
-                                  <span className="line-through truncate">{task.title}</span>
+                              <div key={dateStr} className="space-y-1.5">
+                                <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
+                                  <span className="px-2 py-0.5 bg-cyan-600 text-white font-black text-[10px] rounded-md font-mono">
+                                    {dayName}
+                                  </span>
+                                  <span className="font-bold text-xs text-slate-800 font-mono">
+                                    {isoToDutch(dateStr)}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-mono ml-auto">
+                                    ({dayTasks.length})
+                                  </span>
                                 </div>
-                                <span className="text-[10px] font-mono text-slate-400">{task.date || 'Ongepland'}</span>
+
+                                <div className="space-y-2">
+                                  {dayTasks.map(task => {
+                                    const cat = categories.find(c => c.id === task.categoryId);
+                                    const isMulti = isMultiDayTask(task);
+
+                                    return (
+                                      <div 
+                                        key={`${task.id}-${dateStr}`}
+                                        draggable
+                                        onDragStart={() => setDraggedTaskId(task.id)}
+                                        onClick={() => openTaskModal(task)}
+                                        className="p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200"
+                                        style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                            <button 
+                                              type="button"
+                                              onClick={(e) => { e.stopPropagation(); markComplete(task.id); }} 
+                                              className="text-slate-300 hover:text-cyan-600 transition-colors cursor-pointer"
+                                              title="Voltooien op deze datum"
+                                            >
+                                              <Circle className="w-4 h-4" />
+                                            </button>
+                                            {isMulti ? <span className="text-amber-500 font-bold">★</span> : null}
+                                            {task.status === 'play' && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
+                                            {task.status === 'pause' && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
+                                            <h4 className="text-xs font-bold text-slate-800 truncate">{task.title}</h4>
+                                          </div>
+                                          {cat && renderCategoryBadge(cat)}
+                                        </div>
+
+                                        {isMulti && (
+                                          <div className="text-[10px] text-slate-400 font-mono pl-5">
+                                            Loopt van {isoToDutch(task.date)} tot {isoToDutch(task.endDate)}
+                                          </div>
+                                        )}
+
+                                        <div className="flex items-center justify-end text-[10px]">
+                                          <span className="font-mono text-slate-400">{formatTime(task.secondsSpent)}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             );
                           })}
-
-                          {allDashboardCompletedTasks.length > 30 && (
-                            <button
-                              onClick={() => setActiveTab('archive')}
-                              className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1 mt-1"
-                            >
-                              <span>Bekijk alle {allDashboardCompletedTasks.length} voltooide taken in het Archief</span>
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </button>
-                          )}
                         </div>
                       )}
-                    </div>
 
+                      {/* Voltooide Taken */}
+                      <div className="pt-3 border-t border-slate-100">
+                        <button 
+                          type="button"
+                          onClick={toggleCurrentShowCompleted}
+                          className="w-full flex items-center justify-between text-xs font-bold text-slate-500 hover:text-slate-800 py-1 cursor-pointer"
+                        >
+                          <span>Voltooide taken ({allDashboardCompletedTasks.length})</span>
+                          {currentShowCompleted ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
+
+                        {currentShowCompleted && (
+                          <div className="space-y-1.5 mt-2 opacity-85">
+                            {visibleDashboardCompletedTasks.map(task => {
+                              const cat = categories.find(c => c.id === task.categoryId);
+                              return (
+                                <div 
+                                  key={task.id} 
+                                  onClick={() => openTaskModal(task)}
+                                  className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-500 truncate cursor-pointer flex items-center justify-between hover:bg-white transition"
+                                  style={{ borderLeft: `3px solid ${cat ? cat.color : '#10B981'}` }}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); unmarkComplete(task.id); }}
+                                      className="text-emerald-500 hover:text-emerald-700 cursor-pointer"
+                                      title="Klik om taak te heropenen"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4" />
+                                    </button>
+                                    <span className="line-through truncate">{task.title}</span>
+                                  </div>
+                                  <span className="text-[10px] font-mono text-slate-400">{task.date || 'Ongepland'}</span>
+                                </div>
+                              );
+                            })}
+
+                            {allDashboardCompletedTasks.length > 30 && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('archive')}
+                                className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1 mt-1 cursor-pointer"
+                              >
+                                <span>Bekijk alle {allDashboardCompletedTasks.length} voltooide taken in het Archief</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
                   </div>
+
                 </div>
 
               </div>
@@ -2845,7 +3044,6 @@ export default function App() {
                 <input 
                   type="file" 
                   ref={shareFileInputRef} 
-                  accept="*/*"
                   onChange={handleShareFilePicked} 
                   className="hidden" 
                 />
@@ -3663,7 +3861,6 @@ export default function App() {
                     <input 
                       type="file" 
                       ref={fileInputRef} 
-                      accept="*/*"
                       onChange={(e) => { 
                         const f = e.target.files?.[0]; 
                         if (f) setEditingTask({ ...editingTask, files: [...(editingTask.files || []), { name: f.name, size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`, url: URL.createObjectURL(f) }] }); 
