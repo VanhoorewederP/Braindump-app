@@ -1,14 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   base: '/Braindump-app/',
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
       includeAssets: ['pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Braindump',
@@ -19,6 +20,7 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/Braindump-app/',
         scope: '/Braindump-app/',
+        orientation: 'portrait',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -31,10 +33,6 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
-      },
-      workbox: {
-        navigateFallback: '/Braindump-app/index.html',
-        globPatterns: ['**/*.{js,css,html,png,svg}']
       }
     })
   ],
