@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+#Documenten en geheimen uitsluiten
+*.docx
+*.doc
+*.pdf
+*.env
+
+# Tijdelijke verborgen Word lock-files (wanneer Word openstaat)
+~$*.doc*
+~*.doc*
+~*.tmp
