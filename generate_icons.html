@@ -1,42 +1,55 @@
 <!DOCTYPE html>
 <html>
-<body>
-  <canvas id="c192" width="192" height="192" style="border:1px solid #ccc"></canvas>
-  <canvas id="c512" width="512" height="512" style="border:1px solid #ccc"></canvas>
+<head>
+  <meta charset="utf-8">
+  <title>PWA Icon Generator</title>
+</head>
+<body style="background: #1e293b; display: flex; gap: 20px; padding: 40px; justify-content: center;">
+  <canvas id="c192" width="192" height="192"></canvas>
+  <canvas id="c512" width="512" height="512"></canvas>
 
   <script>
-    function drawIcon(canvasId, size) {
+    function renderAndDownload(canvasId, size) {
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext('2d');
 
-      // Achtergrond gradient (identiek aan je app)
+      // 1. Mooie afgeronde achtergrond met gradient
       const grad = ctx.createLinearGradient(0, 0, size, size);
-      grad.addColorStop(0, '#06b6d4'); // Cyan
-      grad.addColorStop(0.5, '#14b8a6'); // Teal
-      grad.addColorStop(1, '#2563eb'); // Blue
+      grad.addColorStop(0, '#06b6d4'); // Cyaan
+      grad.addColorStop(0.5, '#0d9488'); // Teal
+      grad.addColorStop(1, '#2563eb'); // Blauw
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.roundRect(0, 0, size, size, size * 0.22); // Afgeronde app-icoon hoeken
+      ctx.roundRect(0, 0, size, size, size * 0.22);
       ctx.fill();
 
-      // Logo schalen en tekenen
-      const scale = size / 36;
+      // 2. Translatie naar het exacte middelpunt van de canvas
       ctx.save();
-      ctx.scale(scale, scale);
+      ctx.translate(size / 2, size / 2);
 
-      // Midden bol
-      ctx.fillStyle = 'white';
+      // Logo beslaat 60% van de canvas (perfecte safe-zone voor Android maskable!)
+      const targetLogoSize = size * 0.60;
+      const scale = targetLogoSize / 36;
+      ctx.scale(scale, scale);
+      
+      // Centreer het 36x36 vector-assenstelsel op (0,0)
+      ctx.translate(-18, -18);
+
+      // --- TEKEN HET BRAINDUMP LOGO ---
+      // Middelste bol
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(18, 18, 3.5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Bogen
-      ctx.strokeStyle = 'white';
+      // Buitenste cirkelbogen met lineCap round
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
 
+      ctx.globalAlpha = 1.0;
       ctx.beginPath();
-      ctx.arc(18, 18, 14, -Math.PI / 2, 0); // 18 4 naar 32 18
+      ctx.arc(18, 18, 14, -Math.PI / 2, 0);
       ctx.stroke();
 
       ctx.globalAlpha = 0.75;
@@ -44,7 +57,7 @@
       ctx.arc(18, 18, 14, 0, Math.PI / 2);
       ctx.stroke();
 
-      ctx.globalAlpha = 0.5;
+      ctx.globalAlpha = 0.50;
       ctx.beginPath();
       ctx.arc(18, 18, 14, Math.PI / 2, Math.PI);
       ctx.stroke();
@@ -54,25 +67,25 @@
       ctx.arc(18, 18, 14, Math.PI, (3 * Math.PI) / 2);
       ctx.stroke();
 
-      // Gestippelde binnenring
+      // Binnenste gestippelde ring
       ctx.globalAlpha = 0.85;
-      ctx.lineWidth = 1.75;
-      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([3.5, 3]);
       ctx.beginPath();
       ctx.arc(18, 18, 8.5, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.restore();
 
-      // Download triggeren
+      // Download forceren als PNG
       const link = document.createElement('a');
       link.download = `pwa-${size}x${size}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     }
 
-    drawIcon('c192', 192);
-    drawIcon('c512', 512);
+    renderAndDownload('c192', 192);
+    renderAndDownload('c512', 512);
   </script>
 </body>
 </html>

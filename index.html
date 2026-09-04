@@ -2,15 +2,23 @@
 <html lang="nl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#06B6D4" />
-    <link rel="icon" type="image/png" href="./pwa-192x192.png" />
-    <title>Braindump</title>
+    <!-- Zorgt voor mobiele weergave en laat content doorlopen achter statusbalk/notch -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- PWA thema & iOS statusbalk instellingen -->
+    <meta name="theme-color" content="#0891b2" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Braindump" />
+
+    <!-- Koppelingen naar PWA manifest en iconen op GitHub Pages -->
     <link rel="manifest" href="/Braindump-app/manifest.webmanifest" />
-    <meta name="theme-color" content="#06B6D4" />
+    <link rel="icon" type="image/png" href="/Braindump-app/pwa-192x192.png" />
     <link rel="apple-touch-icon" href="/Braindump-app/pwa-192x192.png" />
+
+    <title>Braindump</title>
   </head>
-  <body>
+  <body class="bg-slate-50 antialiased overflow-hidden select-none">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
