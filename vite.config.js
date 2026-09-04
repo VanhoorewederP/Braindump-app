@@ -22,21 +22,25 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/Braindump-app/',
         scope: '/Braindump-app/',
+        id: '/Braindump-app/',
         orientation: 'portrait',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/pwa-512x512.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
           }
         ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       }
     })
   ],
