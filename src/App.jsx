@@ -72,7 +72,6 @@ import {
 } from 'lucide-react';
 
 const isTauriDesktop = typeof window !== 'undefined' && (Boolean(window.__TAURI_INTERNALS__) || Boolean(window.__TAURI__));
-const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 const handleDragStart = async (e) => {
   if (e.button === 0 && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
@@ -306,7 +305,8 @@ export default function App() {
       }
     ];
   });
-
+  
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Debugging
   const [debugLogs, setDebugLogs] = useState([]);
