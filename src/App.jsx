@@ -1604,23 +1604,17 @@ export default function App() {
         {/* MOBIELE TOPBAR MET HAMBURGER (enkel zichtbaar op mobiel/browser, niet in Tauri) */}
         {!isTauriDesktop && (
           <div className="md:hidden h-14 bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-600 text-white flex items-center justify-between px-4 shrink-0 z-30 shadow-md">
-            <div className="flex items-center gap-3">
-              <button 
-                type="button"
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="p-1.5 rounded-xl bg-white/10 active:bg-white/20 text-white cursor-pointer"
-                title="Open menu"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="flex items-center gap-3 p-1 rounded-2xl active:bg-white/10 cursor-pointer transition select-none"
+              title="Open menu"
+            >
+              <div className="h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-white shadow-sm shrink-0">
                 <WorkflowLogo className="w-6 h-6 text-white" />
-                <span className="font-extrabold text-base tracking-tight">Braindump</span>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${syncStatus.state === 'syncing' ? 'bg-amber-300 animate-pulse' : syncStatus.state === 'error' ? 'bg-rose-400' : 'bg-emerald-300'}`} />
-            </div>
+              <span className="font-extrabold text-base tracking-tight text-white">Braindump</span>
+            </button>
           </div>
         )}
 
@@ -1787,8 +1781,8 @@ export default function App() {
                       const completedSubtasks = (task.subtasks || []).filter(st => st.done).length;
 
                       return (
-                        <div key={task.id} className="flex items-center gap-3">
-                          <div className="w-6 text-right font-mono text-sm font-black text-slate-400 shrink-0">
+                        <div key={task.id} className="flex items-start gap-2.5">
+                          <div className="w-5 text-right font-mono text-xs font-black text-slate-400 shrink-0 mt-3">
                             {index + 1}.
                           </div>
 
@@ -1798,54 +1792,58 @@ export default function App() {
                             onDragOver={(e) => { e.preventDefault(); setDragOverTaskId(task.id); }}
                             onDragEnd={() => handleDragEndCalendarReorder(todayStr, true)}
                             onClick={() => openTaskModal(task)}
-                            className={`flex-1 group flex items-center gap-3.5 p-4 border transition-all cursor-pointer shadow-xs hover:shadow-md rounded-2xl bg-white/90 border-slate-200/80 hover:border-slate-300 ${isPlaying ? 'border-cyan-500 ring-2 ring-cyan-400/30' : dragOverTaskId === task.id ? 'border-cyan-500 scale-[1.01]' : ''}`}
-                            style={{
-                              borderLeft: `6px solid ${cat ? cat.color : '#0EA5E9'}`
-                            }}
+                            className={`flex-1 group flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-3.5 border transition-all cursor-pointer shadow-xs rounded-2xl bg-white/90 border-slate-200/80 ${isPlaying ? 'border-cyan-500 ring-2 ring-cyan-400/30' : dragOverTaskId === task.id ? 'border-cyan-500 scale-[1.01]' : ''}`}
+                            style={{ borderLeft: `6px solid ${cat ? cat.color : '#0EA5E9'}` }}
                           >
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); markComplete(task.id); }} 
-                              className="text-slate-300 hover:text-cyan-600 transition-colors"
-                              title="Voltooien"
-                            >
-                              <Circle className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                              <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); markComplete(task.id); }} 
+                                className="text-slate-300 hover:text-cyan-600 transition-colors mt-0.5 shrink-0"
+                                title="Voltooien"
+                              >
+                                <Circle className="w-5 h-5" />
+                              </button>
 
-                            <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-slate-500 cursor-grab" />
+                              <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-slate-500 cursor-grab shrink-0 mt-0.5 hidden md:block" />
 
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-bold text-slate-800 truncate">
-                                {isMulti && <span className="text-amber-500 mr-1">★</span>}
-                                {task.title}
-                              </h4>
-                              
-                              {task.subtasks && task.subtasks.length > 0 && (
-                                <div className="flex items-center gap-1 text-[10px] font-mono text-slate-500 mt-0.5">
-                                  <ListTodo className="w-3 h-3 text-cyan-600" />
-                                  <span>{completedSubtasks}/{task.subtasks.length} subtaken afgerond</span>
-                                </div>
-                              )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-bold text-slate-800 break-words line-clamp-2">
+                                  {isMulti && <span className="text-amber-500 mr-1">★</span>}
+                                  {task.title}
+                                </h4>
+                                
+                                {task.subtasks && task.subtasks.length > 0 && (
+                                  <div className="flex items-center gap-1 text-[10px] font-mono text-slate-500 mt-1">
+                                    <ListTodo className="w-3 h-3 text-cyan-600 shrink-0" />
+                                    <span>{completedSubtasks}/{task.subtasks.length} subtaken</span>
+                                  </div>
+                                )}
 
-                              {isMulti && (
-                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                  Loopt van {isoToDutch(task.date)} tot {isoToDutch(task.endDate)}
-                                </div>
-                              )}
+                                {isMulti && (
+                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                    Loopt tot {isoToDutch(task.endDate)}
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
-                            {cat && renderCategoryBadge(cat)}
+                            {/* Onderste rij op mobiel, rechterkolom op desktop */}
+                            <div className="flex items-center justify-between md:justify-end gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {cat && renderCategoryBadge(cat)}
+                                <div onClick={(e) => e.stopPropagation()}>{renderStatusBadge(task)}</div>
+                              </div>
 
-                            <div onClick={(e) => e.stopPropagation()}>
-                              {renderStatusBadge(task)}
+                              <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleTaskTimer(task.id); }}
+                                className={`p-2 rounded-xl border transition shrink-0 ${isPlaying ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-cyan-50 border-cyan-200 text-cyan-600'}`}
+                                title={isPlaying ? "Pauzeren" : "Starten"}
+                              >
+                                {isPlaying ? <Pause className="w-3.5 h-3.5 fill-amber-600" /> : <Play className="w-3.5 h-3.5 fill-cyan-600" />}
+                              </button>
                             </div>
-
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); toggleTaskTimer(task.id); }}
-                              className={`p-2 rounded-xl border transition ${isPlaying ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-cyan-50 border-cyan-200 text-cyan-600 hover:bg-cyan-100'}`}
-                              title={isPlaying ? "Pauzeren" : "Starten"}
-                            >
-                              {isPlaying ? <Pause className="w-3.5 h-3.5 fill-amber-600" /> : <Play className="w-3.5 h-3.5 fill-cyan-600" />}
-                            </button>
                           </div>
                         </div>
                       );
@@ -1914,61 +1912,62 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden gap-4 md:gap-5">
-                
+              <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden gap-4 md:gap-5 pb-16 md:pb-0">                
                 {/* Kalender */}
                 <div 
                   onWheel={(e) => handleSmartCalendarWheel(e, false)}
-                  className="flex-1 bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 p-4 shadow-xs flex flex-col overflow-hidden select-none"
+                  className="w-full md:flex-1 bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 p-3 md:p-4 shadow-xs flex flex-col min-h-[420px] md:min-h-0 shrink-0 md:shrink select-none"
                 >
-                  <div className="flex flex-wrap items-center justify-between border-b border-slate-200/80 pb-3 mb-2 gap-2">
-                    <div className="flex items-center gap-3">
-                      <CalendarIcon className="w-4 h-4 text-cyan-600" />
-                      <span className="text-sm font-black text-slate-900 capitalize">
+                  <div className="flex flex-wrap items-center justify-between border-b border-slate-200/80 pb-2 mb-2 gap-2 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-cyan-600 shrink-0" />
+                      <span className="text-xs md:text-sm font-black text-slate-900 capitalize truncate max-w-[140px] md:max-w-none">
                         {calendarHeaderTitle}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
+                        type="button"
                         onClick={() => {
                           const nextScope = currentScope === 'both' ? (activeTab === 'school' ? 'school' : 'private') : 'both';
                           if (activeTab === 'school') setSchoolCalScope(nextScope);
                           else setPrivateCalScope(nextScope);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-xs"
-                        title="Wissel filterweergave"
+                        className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-xs"
                       >
                         <Filter className="w-3 h-3 text-cyan-600" />
-                        <span>{currentScope === 'both' ? 'Toon: Alles' : activeTab === 'school' ? 'Toon: Enkel School' : 'Toon: Enkel Privé'}</span>
+                        <span>{currentScope === 'both' ? 'Alles' : activeTab === 'school' ? 'Enkel School' : 'Enkel Privé'}</span>
                       </button>
 
-                      <div className="flex bg-slate-100 p-0.5 rounded-xl text-xs font-bold">
-                        <button onClick={() => setCurrentCalendarViewMode('week')} className={`px-2.5 py-1 rounded-lg transition ${currentCalendarViewMode === 'week' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Week</button>
-                        <button onClick={() => setCurrentCalendarViewMode('month')} className={`px-2.5 py-1 rounded-lg transition ${currentCalendarViewMode === 'month' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Maand</button>
-                        <button onClick={() => setCurrentCalendarViewMode('custom')} className={`px-2.5 py-1 rounded-lg transition ${currentCalendarViewMode === 'custom' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Custom</button>
+                      <div className="flex bg-slate-100 p-0.5 rounded-xl text-[11px] md:text-xs font-bold">
+                        <button type="button" onClick={() => setCurrentCalendarViewMode('week')} className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg transition ${currentCalendarViewMode === 'week' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Week</button>
+                        <button type="button" onClick={() => setCurrentCalendarViewMode('month')} className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg transition ${currentCalendarViewMode === 'month' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Maand</button>
+                        <button type="button" onClick={() => setCurrentCalendarViewMode('custom')} className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg transition ${currentCalendarViewMode === 'custom' ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500'}`}>Custom</button>
                       </div>
 
                       {currentCalendarViewMode !== 'custom' ? (
-                        <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
-                          <button onClick={() => shiftCalendar(-1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"><ChevronLeft className="w-4 h-4" /></button>
-                          <button onClick={() => setCurrentCalendarAnchorDate(new Date('2026-09-01T12:00:00'))} className="px-2 py-0.5 text-xs font-bold text-cyan-600 hover:bg-cyan-50 rounded-lg">Vandaag</button>
-                          <button onClick={() => shiftCalendar(1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"><ChevronRight className="w-4 h-4" /></button>
+                        <div className="flex items-center gap-0.5 pl-1.5 border-l border-slate-200">
+                          <button type="button" onClick={() => shiftCalendar(-1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"><ChevronLeft className="w-4 h-4" /></button>
+                          <button type="button" onClick={() => setCurrentCalendarAnchorDate(new Date('2026-09-01T12:00:00'))} className="px-1.5 py-0.5 text-[11px] md:text-xs font-bold text-cyan-600 hover:bg-cyan-50 rounded-lg">Vandaag</button>
+                          <button type="button" onClick={() => shiftCalendar(1)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"><ChevronRight className="w-4 h-4" /></button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 text-xs">
-                          <input type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 font-mono text-[11px]" />
-                          <span className="text-slate-400">tot</span>
-                          <input type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 font-mono text-[11px]" />
+                        <div className="flex items-center gap-1 pl-1.5 border-l border-slate-200 text-xs">
+                          <input type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5 font-mono text-[10px]" />
+                          <span className="text-slate-400 text-[10px]">tot</span>
+                          <input type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5 font-mono text-[10px]" />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-2 mb-1.5 px-1">
-                    {['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'].map(d => (
-                      <div key={d} className="text-center font-black text-[11px] text-slate-400 uppercase tracking-wider">
-                        {d}
+                  {/* Dagnamen: automatisch Ma, Di op mobiel en volledig op desktop */}
+                  <div className="grid grid-cols-7 gap-1 md:gap-2 mb-1.5 px-0.5 shrink-0">
+                    {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((d, i) => (
+                      <div key={d} className="text-center font-black text-[10px] md:text-[11px] text-slate-400 uppercase tracking-wider">
+                        <span className="md:hidden">{d}</span>
+                        <span className="hidden md:inline">{['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'][i]}</span>
                       </div>
                     ))}
                   </div>
@@ -2385,8 +2384,8 @@ export default function App() {
               <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Diagnostics & Productiviteit</h2>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-slate-100 p-0.5 rounded-2xl text-xs font-bold">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
+                  <div className="flex bg-slate-100 p-0.5 rounded-2xl text-xs font-bold overflow-x-auto max-w-full">
                     {[
                       { id: 'today', label: 'Vandaag' },
                       { id: 'week', label: 'Week' },
@@ -2397,8 +2396,9 @@ export default function App() {
                     ].map(b => (
                       <button
                         key={b.id}
+                        type="button"
                         onClick={() => setDiagTimeRange(b.id)}
-                        className={`px-3 py-1.5 rounded-xl transition ${diagTimeRange === b.id ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`px-3 py-1.5 rounded-xl transition shrink-0 ${diagTimeRange === b.id ? 'bg-white shadow-xs text-cyan-700' : 'text-slate-500 hover:text-slate-800'}`}
                       >
                         {b.label}
                       </button>
@@ -2406,7 +2406,7 @@ export default function App() {
                   </div>
 
                   {diagTimeRange === 'custom' && (
-                    <div className="flex items-center gap-1.5 text-xs bg-white p-1.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-center gap-1.5 text-xs bg-white p-2 rounded-xl border border-slate-200 w-full sm:w-auto shadow-xs">
                       <input type="date" value={diagCustomStart} onChange={(e) => setDiagCustomStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 font-mono text-[11px]" />
                       <span className="text-slate-400">tot</span>
                       <input type="date" value={diagCustomEnd} onChange={(e) => setDiagCustomEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 font-mono text-[11px]" />
@@ -2605,44 +2605,30 @@ export default function App() {
                       <div 
                         key={task.id} 
                         onClick={() => setViewingArchiveTask(task)}
-                        className="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 transition shadow-2xs"
+                        className="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs cursor-pointer hover:bg-slate-50 transition shadow-2xs"
                         style={{ borderLeft: `5px solid ${cat ? cat.color : '#10B981'}` }}
                       >
-                        <div className="flex items-center gap-3 truncate flex-1 min-w-0">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <button 
+                            type="button"
                             onClick={(e) => { e.stopPropagation(); unmarkComplete(task.id); }}
-                            className="text-emerald-500 hover:text-emerald-700"
+                            className="text-emerald-500 hover:text-emerald-700 shrink-0 mt-0.5"
                             title="Klik om taak te heropenen"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                           </button>
-                          <span className="font-semibold line-through text-slate-600 truncate">{task.title}</span>
-                          {cat && renderCategoryBadge(cat)}
+                          <div className="min-w-0 flex-1">
+                            <span className="font-semibold line-through text-slate-600 block break-words">{task.title}</span>
+                            {cat && <div className="mt-1">{renderCategoryBadge(cat)}</div>}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-4 text-[11px] shrink-0 ml-3">
-                          <div className="w-40 text-right font-mono flex items-center justify-end gap-1">
-                            {typeof startBadge === 'object' ? (
-                              <span className="font-bold text-slate-700">
-                                <span className="text-cyan-700 font-black mr-0.5">{startBadge.day}</span> {startBadge.dateFormatted}
-                                {isMulti && typeof endBadge === 'object' && (
-                                  <span className="text-[10px] text-slate-400 block">➔ <span className="text-cyan-700 font-black">{endBadge.day}</span> {endBadge.dateFormatted}</span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">Ongepland</span>
-                            )}
-                          </div>
-
-                          <div className="w-24 text-right font-mono font-black text-cyan-700">
-                            {formatTime(task.secondsSpent)}
-                          </div>
-
-                          <div className="w-16 text-right">
-                            <span className="text-[10px] text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg font-bold">
-                              Bekijken
-                            </span>
-                          </div>
+                        <div className="flex items-center justify-between sm:justify-end gap-3 text-[11px] pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
+                          <span className="font-mono text-slate-500 font-bold">{task.date ? isoToDutch(task.date) : 'Ongepland'}</span>
+                          <span className="font-mono font-black text-cyan-700">{formatTime(task.secondsSpent)}</span>
+                          <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md font-bold">
+                            Bekijken
+                          </span>
                         </div>
                       </div>
                     );
@@ -2856,7 +2842,13 @@ export default function App() {
                   <h3 className="text-sm font-black text-slate-800">Klik hier om een bestand te droppen</h3>
                   <p className="text-xs text-slate-400 mt-0.5">Direct beschikbaar voor download op je andere apparaten</p>
                 </div>
-                <input type="file" ref={shareFileInputRef} onChange={handleShareFilePicked} className="hidden" />
+                <input 
+                  type="file" 
+                  ref={shareFileInputRef} 
+                  accept="*/*"
+                  onChange={handleShareFilePicked} 
+                  className="hidden" 
+                />
               </div>
 
               <div className="p-4 bg-white/90 border border-slate-200 rounded-2xl flex gap-2 shadow-2xs">
@@ -3528,14 +3520,13 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 items-center">
+                    <div className="flex flex-wrap gap-2 items-center">
                       <input 
                         type="text"
                         placeholder="Dag"
                         value={dayTextInput}
                         onChange={(e) => handleDayTyped(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveAndCloseTaskModal(); }}
-                        className="w-14 bg-cyan-600 text-white font-black text-xs text-center rounded-xl py-1.5 border border-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-cyan-200 uppercase"
+                        className="w-12 bg-cyan-600 text-white font-black text-xs text-center rounded-xl py-1.5 border border-cyan-700 focus:outline-none uppercase shrink-0"
                       />
 
                       <input 
@@ -3543,16 +3534,15 @@ export default function App() {
                         placeholder="DD/MM/JJJJ"
                         value={dateTextInput}
                         onChange={(e) => handleDateTyped(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveAndCloseTaskModal(); }}
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
+                        className="flex-1 min-w-[110px] bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
                       />
 
                       <button 
                         type="button"
                         onClick={() => setShowDatePickerModal(!showDatePickerModal)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-xs font-bold rounded-xl border border-cyan-200/60 transition"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-xs font-bold rounded-xl border border-cyan-200/60 transition shrink-0"
                       >
-                        <CalendarIcon className="w-3.5 h-3.5" /> Kalender
+                        <CalendarIcon className="w-3.5 h-3.5" /> <span>Kalender</span>
                       </button>
                     </div>
 
@@ -3670,7 +3660,17 @@ export default function App() {
                       </div>
                     ))}
 
-                    <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setEditingTask({ ...editingTask, files: [...(editingTask.files || []), { name: f.name, size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`, url: URL.createObjectURL(f) }] }); e.target.value = null; }} className="hidden" />
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      accept="*/*"
+                      onChange={(e) => { 
+                        const f = e.target.files?.[0]; 
+                        if (f) setEditingTask({ ...editingTask, files: [...(editingTask.files || []), { name: f.name, size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`, url: URL.createObjectURL(f) }] }); 
+                        e.target.value = null; 
+                      }} 
+                      className="hidden" 
+                    />
                     <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-dashed border-slate-300">
                       <FolderOpen className="w-4 h-4 text-cyan-600" /> Bestand Toevoegen...
                     </button>
