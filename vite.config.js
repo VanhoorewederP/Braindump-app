@@ -11,24 +11,30 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'assets/*'],
       manifest: {
         name: 'Braindump',
         short_name: 'Braindump',
         description: 'Mijn persoonlijke productiviteits- en planning vault',
-        theme_color: '#0891b2',
+        theme_color: '#06B6D4',
         background_color: '#F8FAFC',
         display: 'standalone',
+        start_url: '/braindump-app/',
+        scope: '/braindump-app/',
         orientation: 'portrait',
         icons: [
           {
             src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
             src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
