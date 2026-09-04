@@ -74,6 +74,7 @@ import {
 const isTauriDesktop = typeof window !== 'undefined' && (Boolean(window.__TAURI_INTERNALS__) || Boolean(window.__TAURI__));
 
 const handleDragStart = async (e) => {
+  if (!isTauriDesktop) return; // ✅ Breek direct af in de browser/mobiel
   if (e.button === 0 && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
     try {
       const win = getCurrentWindow();
@@ -86,6 +87,7 @@ const handleDragStart = async (e) => {
 
 const handleMinimize = async (e) => {
   e?.stopPropagation();
+  if (!isTauriDesktop) return; // ✅ Breek direct af
   try {
     const win = getCurrentWindow();
     await win.minimize();
@@ -96,6 +98,7 @@ const handleMinimize = async (e) => {
 
 const handleMaximizeToggle = async (e) => {
   e?.stopPropagation();
+  if (!isTauriDesktop) return; // ✅ Breek direct af
   try {
     const win = getCurrentWindow();
     await win.toggleMaximize();
@@ -106,6 +109,7 @@ const handleMaximizeToggle = async (e) => {
 
 const handleClose = async (e) => {
   e?.stopPropagation();
+  if (!isTauriDesktop) return; // ✅ Breek direct af
   try {
     const win = getCurrentWindow();
     await win.close();
@@ -305,7 +309,7 @@ export default function App() {
       }
     ];
   });
-  
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Debugging
@@ -488,8 +492,10 @@ export default function App() {
   useEffect(() => { localStorage.setItem('pb_auto_sync', autoSyncEnabled.toString()); }, [autoSyncEnabled]);
   useEffect(() => { localStorage.setItem('pb_last_sync', lastSyncTime); }, [lastSyncTime]);
 
-  // Maximize status live bijhouden
+  // Maximize status live bijhouden (enkel in Tauri desktop)
   useEffect(() => {
+    if (!isTauriDesktop) return; // ✅ DIT VOORKOMT DE 'metadata' FOOT IN DE CONSOLE!
+
     let unlistenResize;
     const initWindowListener = async () => {
       try {
