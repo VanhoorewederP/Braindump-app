@@ -513,6 +513,69 @@ export default function App() {
   useEffect(() => { localStorage.setItem('pb_auto_sync', autoSyncEnabled.toString()); }, [autoSyncEnabled]);
   useEffect(() => { localStorage.setItem('pb_last_sync', lastSyncTime); }, [lastSyncTime]);
 
+  // Escape-knop sluit alle open modals op desktop
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (editingTask) saveAndCloseTaskModal();
+        if (viewingArchiveTask) setViewingArchiveTask(null);
+        if (viewingArchivedCategory) setViewingArchivedCategory(null);
+        if (showCategoryManager) setShowCategoryManager(false);
+        if (taskToDelete) setTaskToDelete(null);
+        if (editingTimeTask) setEditingTimeTask(null);
+        if (categoryToArchive) setCategoryToArchive(null);
+        if (categoryToDelete) setCategoryToDelete(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    editingTask, 
+    viewingArchiveTask, 
+    viewingArchivedCategory, 
+    showCategoryManager, 
+    taskToDelete, 
+    editingTimeTask, 
+    categoryToArchive, 
+    categoryToDelete
+  ]);
+
+  // Notificatiepermissie vragen op mobiel
+  useEffect(() => {
+    if (!isTauriDesktop && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+
+  useEffect(() => {
+    const checkAlarms = () => {
+      const now = new Date();
+      const currentIsoDate = formatIsoDate(now);
+      const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      tasks.forEach(t => {
+        if (!t.completed && t.reminderDate === currentIsoDate && t.reminderTime === currentTimeStr && !t.reminderFired) {
+          // Trigger enkel op mobiel
+          if (!isTauriDesktop && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification(`⏰ Herinnering: ${t.title}`, {
+              body: t.content || 'Tijd om aan deze taak te beginnen!',
+              icon: '/Braindump-app/pwa-192x192.png',
+              vibrate: [200, 100, 200]
+            });
+          }
+
+          // Markeer als afgegaan zodat hij niet blijft trillen
+          setTasks(prev => prev.map(item => item.id === t.id ? { ...item, reminderFired: true } : item));
+        }
+      });
+    };
+
+    const interval = setInterval(checkAlarms, 30000);
+    return () => clearInterval(interval);
+  }, [tasks]);
+
   // Maximize status live bijhouden (enkel in Tauri desktop)
   useEffect(() => {
     if (!isTauriDesktop) return; // ✅ DIT VOORKOMT DE 'metadata' FOOT IN DE CONSOLE!
@@ -557,6 +620,44 @@ export default function App() {
       setRolloverTasks(overdue);
     }
   }, [tasks, categories]);
+
+  useEffect(() => {
+    if (!isTauriDesktop) return;
+
+    let idleSeconds = 0;
+    const idleInterval = setInterval(async () => {
+      const isAnyTaskPlaying = tasks.some(t => t.status === 'play' && !t.completed);
+      
+      if (!isAnyTaskPlaying) {
+        idleSeconds += 10;
+        // Na 15 minuten inactiviteit (900 seconden)
+        if (idleSeconds === 900) {
+          try {
+            const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/plugin-notification');
+            let hasPerm = await isPermissionGranted();
+            if (!hasPerm) {
+              const perm = await requestPermission();
+              hasPerm = perm === 'granted';
+            }
+            if (hasPerm) {
+              sendNotification({
+                title: 'Braindump Focus Reminder',
+                body: 'Je hebt al even geen timer lopen. Ben je niet vergeten je taak te herstarten?'
+              });
+            }
+          } catch (e) {
+            console.warn("Tauri notification error:", e);
+          }
+        }
+      } else {
+        idleSeconds = 0;
+      }
+    }, 10000);
+
+    return () => clearInterval(idleInterval);
+  }, [tasks]);
+
+
 
   // GitHub Cloud Sync Engine
   const pushToGitHub = async (isBackground = false) => {
@@ -998,6 +1099,7 @@ export default function App() {
         content: '',
         categoryId: defaultCat || categories[0]?.id,
         type: activeTab === 'private' ? 'private' : 'school',
+        priority: false,
         date: '',
         endDate: '',
         status: 'queue',
@@ -1326,7 +1428,19 @@ export default function App() {
 
   const handleShareFilePicked = (e) => {
     const file = e.target.files?.[0];
-    if (file) addSharedItem(file.name, 'file', URL.createObjectURL(file));
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert("Bestand is groter dan 15MB. Kies een kleiner bestand voor snelle cloud-drop.");
+      e.target.value = null;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      addSharedItem(file.name, 'file', reader.result);
+    };
+    reader.readAsDataURL(file);
     e.target.value = null;
   };
 
@@ -1861,8 +1975,10 @@ export default function App() {
                             onDragOver={(e) => { e.preventDefault(); setDragOverTaskId(task.id); }}
                             onDragEnd={() => handleDragEndCalendarReorder(todayStr, true)}
                             onClick={() => openTaskModal(task)}
-                            className={`flex-1 group flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-3.5 border transition-all cursor-pointer shadow-xs rounded-2xl bg-white/90 border-slate-200/80 ${isPlaying ? 'border-cyan-500 ring-2 ring-cyan-400/30' : dragOverTaskId === task.id ? 'border-cyan-500 scale-[1.01]' : ''}`}
-                            style={{ borderLeft: `6px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                            className={`flex-1 group flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-3.5 border transition-all cursor-pointer shadow-xs rounded-2xl bg-white/90 border-slate-200/80 ${task.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/40' : ''} ${isPlaying ? 'border-cyan-500 ring-2 ring-cyan-400/30' : dragOverTaskId === task.id ? 'border-cyan-500 scale-[1.01]' : ''}`}
+                            style={{
+                              borderLeft: `6px solid ${task.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}`
+                            }}
                           >
                             <div className="flex items-start gap-2.5 min-w-0 flex-1">
                               <button 
@@ -1877,9 +1993,10 @@ export default function App() {
                               <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-slate-500 cursor-grab shrink-0 mt-0.5 hidden md:block" />
 
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-bold text-slate-800 break-words line-clamp-2">
-                                  {isMulti && <span className="text-amber-500 mr-1">★</span>}
-                                  {task.title}
+                                <h4 className="text-sm font-bold text-slate-800 break-words line-clamp-2 flex items-center gap-1.5">
+                                  {task.priority && <Flame className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />}
+                                  {isMulti && <span className="text-amber-500">★</span>}
+                                  <span>{task.title}</span>
                                 </h4>
                                 
                                 {task.subtasks && task.subtasks.length > 0 && (
@@ -2434,8 +2551,8 @@ export default function App() {
                                       draggable
                                       onDragStart={() => setDraggedTaskId(task.id)}
                                       onClick={() => openTaskModal(task)}
-                                      className="p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200"
-                                      style={{ borderLeft: `3px solid ${cat.color}` }}
+                                      className={`p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200 ${task.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/30' : ''}`}
+                                      style={{ borderLeft: `3px solid ${task.priority ? '#EF4444' : cat.color}` }}
                                     >
                                       <div className="flex items-center gap-1.5">
                                         <button 
@@ -2448,7 +2565,11 @@ export default function App() {
                                         </button>
                                         {task.status === 'play' && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
                                         {task.status === 'pause' && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
-                                        <h4 className="text-xs font-bold text-slate-800 truncate flex-1">{task.title}</h4>
+                                        <h4 className="text-xs font-bold text-slate-800 truncate flex-1 flex items-center gap-1">
+                                          {task.priority && <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500 shrink-0" />}
+                                          {isMulti && <span className="text-amber-500 font-bold">★</span>}
+                                          <span className="truncate">{task.title}</span>
+                                        </h4>
                                       </div>
                                       
                                       <div className="flex items-center justify-between text-[10px]">
@@ -3622,6 +3743,18 @@ export default function App() {
                     className="w-full text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none resize-none h-20"
                     placeholder="Inhoud of extra details..."
                   />
+
+                  {/* 👈 VOEG HIER DE PRIORITEITSKNOP TOE */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTask({ ...editingTask, priority: !editingTask.priority })}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer ${editingTask.priority ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
+                    >
+                      <Flame className={`w-3.5 h-3.5 ${editingTask.priority ? 'fill-rose-500 text-rose-500' : 'text-slate-400'}`} />
+                      <span>{editingTask.priority ? 'Hoge Prioriteit' : 'Normale Prioriteit'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/70 space-y-3">
@@ -3847,6 +3980,38 @@ export default function App() {
                     )}
                   </div>
                 </div>
+                
+                {/* 2.C Mobiel Alarm & Notificatie */}
+                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-cyan-600" /> Mobiel Alarm / Notificatie
+                    </label>
+                    {(editingTask.reminderDate || editingTask.reminderTime) && (
+                      <button 
+                        type="button" 
+                        onClick={() => setEditingTask({ ...editingTask, reminderDate: '', reminderTime: '', reminderFired: false })}
+                        className="text-[10px] text-rose-500 font-bold hover:underline"
+                      >
+                        Wissen
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="date" 
+                      value={editingTask.reminderDate || ''}
+                      onChange={(e) => setEditingTask({ ...editingTask, reminderDate: e.target.value, reminderFired: false })}
+                      className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
+                    />
+                    <input 
+                      type="time" 
+                      value={editingTask.reminderTime || ''}
+                      onChange={(e) => setEditingTask({ ...editingTask, reminderTime: e.target.value, reminderFired: false })}
+                      className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Web Links</h4>
@@ -3880,10 +4045,28 @@ export default function App() {
                   <div className="space-y-1.5">
                     {editingTask.files?.map((f, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                        <a href={f.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-mono text-cyan-600 hover:underline truncate flex-1 font-bold">
-                          <FolderOpen className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">{f.name}</span>
-                        </a>
-                        <button type="button" onClick={() => setEditingTask({ ...editingTask, files: editingTask.files.filter((_, i) => i !== idx) })} className="text-slate-400 hover:text-rose-500 ml-2">
+                        {/* 👈 VERVANG DE <a> TAG DOOR DIT: */}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (isTauriDesktop && f.path) {
+                              try {
+                                const { open } = await import('@tauri-apps/plugin-shell');
+                                await open(f.path);
+                              } catch (err) {
+                                console.error("Fout bij openen lokaal bestand:", err);
+                              }
+                            } else {
+                              window.open(f.url, '_blank');
+                            }
+                          }}
+                          className="flex items-center gap-2 font-mono text-cyan-600 hover:underline truncate flex-1 font-bold text-left cursor-pointer"
+                        >
+                          <FolderOpen className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                          <span className="truncate">{f.name}</span>
+                        </button>
+
+                        <button type="button" onClick={() => setEditingTask({ ...editingTask, files: editingTask.files.filter((_, i) => i !== idx) })} className="text-slate-400 hover:text-rose-500 ml-2 cursor-pointer">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
