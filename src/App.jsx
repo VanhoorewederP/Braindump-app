@@ -236,7 +236,7 @@ const PRESET_ICONS = [
   { id: 'sport', label: 'Sport & Fitness' },
   { id: 'gaming', label: 'Gaming' },
   { id: 'music', label: 'Muziek & Podcasts' },
-  { id: 'idea', label: 'Ideeën & Braindump' },
+  { id: 'idea', label: 'Ideeën' },
   { id: 'health', label: 'Zelfzorg' },
   { id: 'coffee', label: 'Ontspanning' }
 ];
@@ -528,6 +528,20 @@ export default function App() {
       if (unlistenResize) unlistenResize();
     };
   }, []);
+
+  // Rollover check: controleer bij opstarten of er onvoltooide taken vóór vandaag waren
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const overdue = tasks.filter(t => 
+      !t.completed && 
+      t.date && 
+      t.date < today &&
+      activeCategoriesIds.includes(t.categoryId)
+    );
+    if (overdue.length > 0) {
+      setRolloverTasks(overdue);
+    }
+  }, [tasks]);
 
   // GitHub Cloud Sync Engine
   const pushToGitHub = async (isBackground = false) => {
@@ -1685,7 +1699,7 @@ export default function App() {
               {[
                 { id: 'myday', label: 'Mijn Dag', icon: Sun, badge: myDayTasks.length },
                 { id: 'school', label: 'School', icon: GraduationCap },
-                { id: 'private', label: 'Privé & Braindump', icon: User },
+                { id: 'private', label: 'Privé', icon: User },
                 { id: 'diagnostics', label: 'Diagnostics', icon: BarChart3 },
                 { id: 'archive', label: 'Archief', icon: Archive },
                 { id: 'cloud', label: 'Cloud Sync', icon: Cloud },
@@ -1932,7 +1946,7 @@ export default function App() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1 shrink-0">
                 <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
                   <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight truncate">
-                    {activeTab === 'school' ? 'School' : 'Privé & Braindump'}
+                    {activeTab === 'school' ? 'School' : 'Privé'}
                   </h2>
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 md:hidden">
                     {MONTH_NAMES[currentCalendarAnchorDate.getMonth()]} {currentCalendarAnchorDate.getFullYear()}
@@ -2581,7 +2595,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-6">
               
               <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Diagnostics & Productiviteit</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Diagnostics</h2>
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
                   <div className="flex bg-slate-100 p-0.5 rounded-2xl text-xs font-bold overflow-x-auto max-w-full">
