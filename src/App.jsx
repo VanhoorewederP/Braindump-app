@@ -177,7 +177,12 @@ async function encryptData(plainText, password) {
   combined.set(iv, salt.length);
   combined.set(new Uint8Array(encrypted), salt.length + iv.length);
 
-  return utoa(String.fromCharCode(...combined));
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < combined.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, combined.subarray(i, i + chunkSize));
+  }
+  return utoa(binary);
 }
 
 async function decryptData(cipherBase64, password) {
@@ -271,6 +276,25 @@ function WorkflowLogo({ className = "w-7 h-7" }) {
     </svg>
   );
 }
+
+const playAlarmSound = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) {
+    console.warn("Audio niet toegestaan:", e);
+  }
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pb_active_tab') || 'myday');
@@ -378,6 +402,18 @@ export default function App() {
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => localStorage.getItem('pb_auto_sync') !== 'false');
   const [lastSyncTime, setLastSyncTime] = useState(() => localStorage.getItem('pb_last_sync') || 'Nog niet gesynchroniseerd');
   const [syncStatus, setSyncStatus] = useState({ state: 'idle', message: '' });
+
+  const enableNotifications = async () => {
+    if ('Notification' in window) {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        new Notification("Braindump", { 
+          body: "Meldingen zijn succesvol ingeschakeld!", 
+          icon: "/Braindump-app/pwa-192x192.png" 
+        });
+      }
+    }
+  };
 
   // Diagnostics Filters
   const [diagTimeRange, setDiagTimeRange] = useState('always');
@@ -557,24 +593,36 @@ export default function App() {
 
       tasks.forEach(t => {
         if (!t.completed && t.reminderDate === currentIsoDate && t.reminderTime === currentTimeStr && !t.reminderFired) {
-          // Trigger enkel op mobiel
+          // Speel alarmtoon af
+          playAlarmSound();
+
+          // Stuur mobiele banner melding
           if (!isTauriDesktop && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification(`⏰ Herinnering: ${t.title}`, {
-              body: t.content || 'Tijd om aan deze taak te beginnen!',
-              icon: '/Braindump-app/pwa-192x192.png',
-              vibrate: [200, 100, 200]
+            navigator.serviceWorker?.ready.then(registration => {
+              registration.showNotification(`⏰ ${t.title}`, {
+                body: t.content || 'Herinnering voor je geplande taak',
+                icon: '/Braindump-app/pwa-192x192.png',
+                vibrate: [300, 100, 300, 100, 300],
+                tag: t.id
+              });
+            }).catch(() => {
+              new Notification(`⏰ ${t.title}`, {
+                body: t.content || 'Herinnering voor je geplande taak',
+                icon: '/Braindump-app/pwa-192x192.png'
+              });
             });
           }
 
-          // Markeer als afgegaan zodat hij niet blijft trillen
+          // Zorgt dat het alarm maar 1 keer afgaat en behoudt priority!
           setTasks(prev => prev.map(item => item.id === t.id ? { ...item, reminderFired: true } : item));
         }
       });
     };
 
-    const interval = setInterval(checkAlarms, 30000);
+    const interval = setInterval(checkAlarms, 10000);
     return () => clearInterval(interval);
   }, [tasks]);
+
 
   // Maximize status live bijhouden (enkel in Tauri desktop)
   useEffect(() => {
@@ -691,7 +739,7 @@ export default function App() {
 
     try {
       addDebugLog(`Data versleutelen en SHA controleren...`);
-      const payloadObj = { tasks, categories, lastUpdated: new Date().toISOString() };
+      const payloadObj = { tasks, categories, sharedItems, lastUpdated: new Date().toISOString() };
       const jsonStr = JSON.stringify(payloadObj);
       const encryptedPayload = await encryptData(jsonStr, activePassword);
 
@@ -800,7 +848,8 @@ export default function App() {
         currentShaRef.current = getData.sha;
         setTasks(vault.tasks);
         setCategories(vault.categories);
-
+        if (vault.sharedItems) setSharedItems(vault.sharedItems);
+        
         // Update ook de content hashes zodat de pull geen onnodige push triggert
         const newHash = getTaskContentHash(vault.tasks, vault.categories);
         lastSyncedPayloadRef.current = newHash;
@@ -936,7 +985,7 @@ export default function App() {
       await pushToGitHub(true);
     }, 1500);
 
-  }, [tasks, categories]); // Luister enkel naar wijzigingen in taken en categorieën!
+  }, [tasks, categories, sharedItems]); // Luister enkel naar wijzigingen in taken en categorieën en sharedItems!
 
   // Timer Tick
   useEffect(() => {
@@ -964,6 +1013,41 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, []);
+
+  // Windows Idle Reminder: herinnert na 15 minuten inactiviteit (in Tauri)
+  useEffect(() => {
+    if (!isTauriDesktop) return;
+
+    let idleSeconds = 0;
+    const idleInterval = setInterval(() => {
+      const isAnyTaskPlaying = tasks.some(t => t.status === 'play' && !t.completed);
+      
+      if (!isAnyTaskPlaying) {
+        idleSeconds += 1;
+        // Test op 9 seconden (zet dit op 900 voor 15 minuten)
+        if (idleSeconds === 9) {
+          if (Notification.permission === 'granted') {
+            new Notification('Braindump Focus Reminder', {
+              body: 'Je hebt al even geen timer lopen. Ben je niet vergeten je taak te starten?',
+              icon: '/Braindump-app/pwa-192x192.png'
+            });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(perm => {
+              if (perm === 'granted') {
+                new Notification('Braindump Focus Reminder', {
+                  body: 'Je hebt al even geen timer lopen. Ben je niet vergeten je taak te starten?'
+                });
+              }
+            });
+          }
+        }
+      } else {
+        idleSeconds = 0;
+      }
+    }, 1000);
+
+    return () => clearInterval(idleInterval);
+  }, [tasks]);
 
   // Date Helpers
   const formatIsoDate = (d) => {
@@ -2221,8 +2305,7 @@ export default function App() {
                                   <div
                                     key={t.id}
                                     onClick={() => openTaskModal(t)}
-                                    className={`p-2.5 rounded-xl border bg-white shadow-2xs flex items-center justify-between gap-2 cursor-pointer ${t.completed ? 'opacity-50 bg-emerald-50/30' : ''}`}
-                                    style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                    className={`p-2.5 rounded-xl border border-slate-200/90 hover:border-slate-300 bg-white shadow-xs flex items-center justify-between gap-2 cursor-pointer ${t.completed ? 'opacity-50 bg-slate-50' : ''}`}                                    style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
                                   >
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                       <button 
@@ -2398,8 +2481,8 @@ export default function App() {
                                                 onDragStart={() => setDraggedTaskId(t.id)}
                                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
                                                 onClick={() => openTaskModal(t)}
-                                                className={`px-1.5 py-0.5 rounded-lg border shadow-2xs cursor-grab active:cursor-grabbing hover:border-cyan-400 transition-all flex items-center gap-1 bg-white border-slate-200 ${isComp ? 'opacity-50 line-through bg-emerald-50/40' : ''}`}
-                                                style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                                className={`px-1.5 py-0.5 rounded-lg border shadow-2xs cursor-grab active:cursor-grabbing hover:border-cyan-400 transition-all flex items-center gap-1 bg-white border-slate-200 ${task.priority ? 'ring-1 ring-rose-500 bg-rose-50/40 text-rose-900' : ''} ${isComp ? 'opacity-50 line-through bg-emerald-50/40' : ''}`}
+                                                style={{ borderLeft: `3px solid ${task.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
                                               >
                                                 <button 
                                                   type="button"
@@ -2411,8 +2494,9 @@ export default function App() {
                                                 </button>
                                                 {t.status === 'play' && !isComp && <Play className="w-2 h-2 fill-cyan-600 text-cyan-600 shrink-0" />}
                                                 {t.status === 'pause' && !isComp && <Pause className="w-2 h-2 fill-amber-600 text-amber-600 shrink-0" />}
-                                                <span className="text-[10px] font-bold text-slate-800 truncate leading-tight">
-                                                  {t.title}
+                                                <span className="text-[10px] font-bold text-slate-800 truncate leading-tight flex items-center gap-0.5">
+                                                  {task.priority && <Flame className="w-2.5 h-2.5 text-rose-500 fill-rose-500 shrink-0" />}
+                                                  {task.title}
                                                 </span>
                                               </div>
                                             );
@@ -2425,8 +2509,8 @@ export default function App() {
                                               onDragStart={() => setDraggedTaskId(t.id)}
                                               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
                                               onClick={() => openTaskModal(t)}
-                                              className={`p-2.5 border shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-left space-y-1.5 rounded-xl bg-white border-slate-200 ${isComp ? 'opacity-50 bg-emerald-50/30' : ''}`}
-                                              style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                              className={`p-2.5 border shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-left space-y-1.5 rounded-xl bg-white border-slate-200 ${task.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/30' : ''} ${isComp ? 'opacity-50 bg-emerald-50/30' : ''}`}
+                                              style={{ borderLeft: `4px solid ${task.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
                                             >
                                               <div className="flex items-center gap-1.5">
                                                 <button 
@@ -2439,8 +2523,9 @@ export default function App() {
                                                 </button>
                                                 {t.status === 'play' && !isComp && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
                                                 {t.status === 'pause' && !isComp && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
-                                                <p className={`text-xs font-bold text-slate-800 truncate flex-1 ${isComp ? 'line-through text-slate-400' : ''}`}>
-                                                  {t.title}
+                                                <p className={`text-xs font-bold text-slate-800 truncate flex-1 flex items-center gap-1 ${isComp ? 'line-through text-slate-400' : ''}`}>
+                                                  {task.priority && <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500 shrink-0" />}
+                                                  {task.title}
                                                 </p>
                                               </div>
                                               
@@ -3130,6 +3215,20 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 flex items-center justify-between shadow-xs">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">Mobiele Notificaties & Alarmen</h4>
+                  <p className="text-[11px] text-slate-400">Geef toestemming om herinneringen te ontvangen op dit toestel</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={enableNotifications}
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+                >
+                  Meldingen Inschakelen
+                </button>
               </div>
               
               {/* INKLAPBARE LIVE SYNC DEBUGGER */}
@@ -4045,18 +4144,19 @@ export default function App() {
                   <div className="space-y-1.5">
                     {editingTask.files?.map((f, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                        {/* 👈 VERVANG DE <a> TAG DOOR DIT: */}
+                        
+                        {/* 👉 HIER KOMT STUKJE B (Het openen van het bestand): */}
                         <button
                           type="button"
                           onClick={async () => {
                             if (isTauriDesktop && f.path) {
                               try {
-                                const { open } = await import('@tauri-apps/plugin-shell');
+                                const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-shell');
                                 await open(f.path);
                               } catch (err) {
-                                console.error("Fout bij openen lokaal bestand:", err);
+                                console.error("Fout bij openen van bestand:", err);
                               }
-                            } else {
+                            } else if (f.url) {
                               window.open(f.url, '_blank');
                             }
                           }}
@@ -4072,17 +4172,33 @@ export default function App() {
                       </div>
                     ))}
 
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={(e) => { 
-                        const f = e.target.files?.[0]; 
-                        if (f) setEditingTask({ ...editingTask, files: [...(editingTask.files || []), { name: f.name, size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`, url: URL.createObjectURL(f) }] }); 
-                        e.target.value = null; 
+                    <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setEditingTask({ ...editingTask, files: [...(editingTask.files || []), { name: f.name, size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`, url: URL.createObjectURL(f) }] }); e.target.value = null; }} className="hidden" />
+                    
+                    {/* 👉 HIER VERVANG JE DE KNOP "Bestand Toevoegen..." DOOR STUKJE A: */}
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        if (isTauriDesktop) {
+                          try {
+                            const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-dialog');
+                            const selected = await open({ multiple: false });
+                            if (selected && typeof selected === 'string') {
+                              const fileName = selected.split('\\').pop().split('/').pop();
+                              setEditingTask({
+                                ...editingTask,
+                                files: [...(editingTask.files || []), { name: fileName, path: selected, url: '' }]
+                              });
+                            }
+                          } catch (err) {
+                            console.warn("Tauri file dialog fallback:", err);
+                            fileInputRef.current?.click();
+                          }
+                        } else {
+                          fileInputRef.current?.click();
+                        }
                       }} 
-                      className="hidden" 
-                    />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-dashed border-slate-300">
+                      className="flex items-center justify-center gap-2 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-dashed border-slate-300 cursor-pointer"
+                    >
                       <FolderOpen className="w-4 h-4 text-cyan-600" /> Bestand Toevoegen...
                     </button>
                   </div>
