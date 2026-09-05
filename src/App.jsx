@@ -1,9 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as ReactDOM from 'react-dom';
-
-if (typeof window !== 'undefined' && !window.ReactDOM) {
-  window.ReactDOM = ReactDOM;
-}
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
   GraduationCap, 
@@ -2481,8 +2476,8 @@ export default function App() {
                                                 onDragStart={() => setDraggedTaskId(t.id)}
                                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
                                                 onClick={() => openTaskModal(t)}
-                                                className={`px-1.5 py-0.5 rounded-lg border shadow-2xs cursor-grab active:cursor-grabbing hover:border-cyan-400 transition-all flex items-center gap-1 bg-white border-slate-200 ${task.priority ? 'ring-1 ring-rose-500 bg-rose-50/40 text-rose-900' : ''} ${isComp ? 'opacity-50 line-through bg-emerald-50/40' : ''}`}
-                                                style={{ borderLeft: `3px solid ${task.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
+                                                className={`px-1.5 py-0.5 rounded-lg border shadow-2xs cursor-grab active:cursor-grabbing hover:border-cyan-400 transition-all flex items-center gap-1 bg-white border-slate-200 ${t.priority ? 'ring-1 ring-rose-500 bg-rose-50/40 text-rose-900' : ''} ${isComp ? 'opacity-50 line-through bg-emerald-50/40' : ''}`}
+                                                style={{ borderLeft: `3px solid ${t.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
                                               >
                                                 <button 
                                                   type="button"
@@ -2495,8 +2490,8 @@ export default function App() {
                                                 {t.status === 'play' && !isComp && <Play className="w-2 h-2 fill-cyan-600 text-cyan-600 shrink-0" />}
                                                 {t.status === 'pause' && !isComp && <Pause className="w-2 h-2 fill-amber-600 text-amber-600 shrink-0" />}
                                                 <span className="text-[10px] font-bold text-slate-800 truncate leading-tight flex items-center gap-0.5">
-                                                  {task.priority && <Flame className="w-2.5 h-2.5 text-rose-500 fill-rose-500 shrink-0" />}
-                                                  {task.title}
+                                                  {t.priority && <Flame className="w-2.5 h-2.5 text-rose-500 fill-rose-500 shrink-0" />}
+                                                  {t.title}
                                                 </span>
                                               </div>
                                             );
@@ -2509,8 +2504,8 @@ export default function App() {
                                               onDragStart={() => setDraggedTaskId(t.id)}
                                               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); }}
                                               onClick={() => openTaskModal(t)}
-                                              className={`p-2.5 border shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-left space-y-1.5 rounded-xl bg-white border-slate-200 ${task.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/30' : ''} ${isComp ? 'opacity-50 bg-emerald-50/30' : ''}`}
-                                              style={{ borderLeft: `4px solid ${task.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
+                                              className={`p-2.5 border shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-left space-y-1.5 rounded-xl bg-white border-slate-200 ${t.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/30' : ''} ${isComp ? 'opacity-50 bg-emerald-50/30' : ''}`}
+                                              style={{ borderLeft: `4px solid ${t.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
                                             >
                                               <div className="flex items-center gap-1.5">
                                                 <button 
@@ -2524,8 +2519,8 @@ export default function App() {
                                                 {t.status === 'play' && !isComp && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
                                                 {t.status === 'pause' && !isComp && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
                                                 <p className={`text-xs font-bold text-slate-800 truncate flex-1 flex items-center gap-1 ${isComp ? 'line-through text-slate-400' : ''}`}>
-                                                  {task.priority && <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500 shrink-0" />}
-                                                  {task.title}
+                                                  {t.priority && <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500 shrink-0" />}
+                                                  {t.title}
                                                 </p>
                                               </div>
                                               
