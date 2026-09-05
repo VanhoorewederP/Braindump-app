@@ -272,24 +272,14 @@ function WorkflowLogo({ className = "w-7 h-7" }) {
   );
 }
 
-const playAlarmSound = () => {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
-    gain.gain.setValueAtTime(0.5, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-  } catch (e) {
-    console.warn("Audio niet toegestaan:", e);
-  }
+
+const [toastMessage, setToastMessage] = useState(null);
+
+const showToast = (msg) => {
+  setToastMessage(msg);
+  setTimeout(() => setToastMessage(null), 3500);
 };
+
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pb_active_tab') || 'myday');
@@ -400,7 +390,7 @@ export default function App() {
 
   const enableNotifications = async () => {
     if (!('Notification' in window)) {
-      alert("Deze browser ondersteunt helaas geen meldingen.");
+      showToast("Deze browser ondersteunt helaas geen meldingen.");
       return;
     }
 
@@ -408,7 +398,7 @@ export default function App() {
       let perm = Notification.permission;
 
       if (perm === 'denied') {
-        alert("Meldingen zijn geblokkeerd in je browser. Klik linksboven in de adresbalk op het slotje/instellingen-icoon om meldingen weer toe te staan.");
+        showToast("Meldingen zijn geblokkeerd in je browser. Klik linksboven in de adresbalk op het slotje/instellingen-icoon om meldingen weer toe te staan.");
         return;
       }
 
@@ -420,10 +410,13 @@ export default function App() {
         // Op Android werkt meldingen tonen het beste via de actieve Service Worker
         if ('serviceWorker' in navigator) {
           const reg = await navigator.serviceWorker.ready;
-          reg.showNotification("Braindump", {
-            body: "Meldingen en alarmen zijn ingeschakeld!",
-            icon: "/Braindump-app/pwa-192x192.png",
-            vibrate: [200, 100, 200]
+          reg.showNotification(t.title, {
+            body: t.content || 'Herinnering voor je geplande taak',
+            icon: '/Braindump-app/pwa-192x192.png', // Grote logo rechts
+            badge: '/Braindump-app/pwa-192x192.png', // Klein monochroom icoon in de Android statusbalk links
+            vibrate: [300, 150, 300], // Laat Android zelf trillen volgens systeemprofiel
+            tag: t.id,
+            renotify: true
           });
         } else {
           new Notification("Braindump", {
@@ -431,13 +424,13 @@ export default function App() {
             icon: "/Braindump-app/pwa-192x192.png"
           });
         }
-        alert("Meldingen succesvol geactiveerd!");
+        showToast("Meldingen succesvol geactiveerd!");
       } else {
-        alert("Toestemming voor meldingen werd geweigerd.");
+        showToast("Toestemming voor meldingen werd geweigerd.");
       }
     } catch (err) {
       console.error("Meldingen error:", err);
-      alert("Er ging iets mis bij het inschakelen: " + err.message);
+      showToast("Er ging iets mis bij het inschakelen: " + err.message);
     }
   };
 
@@ -623,6 +616,9 @@ export default function App() {
 
 
   useEffect(() => {
+    // Pc hoeft dit nooit af te vuren
+    if (isTauriDesktop) return;
+
     const checkAlarms = () => {
       const now = new Date();
       const currentIsoDate = formatIsoDate(now);
@@ -630,27 +626,21 @@ export default function App() {
 
       tasks.forEach(t => {
         if (!t.completed && t.reminderDate === currentIsoDate && t.reminderTime === currentTimeStr && !t.reminderFired) {
-          // Speel alarmtoon af
-          playAlarmSound();
-
-          // Stuur mobiele banner melding
-          if (!isTauriDesktop && 'Notification' in window && Notification.permission === 'granted') {
-            navigator.serviceWorker?.ready.then(registration => {
-              registration.showNotification(`⏰ ${t.title}`, {
-                body: t.content || 'Herinnering voor je geplande taak',
+          
+          // Echte Android systeemnotificatie via Service Worker
+          if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification(t.title, {
+                body: t.content || 'Tijd voor je geplande taak',
                 icon: '/Braindump-app/pwa-192x192.png',
+                badge: '/Braindump-app/pwa-192x192.png',
                 vibrate: [300, 100, 300, 100, 300],
-                tag: t.id
-              });
-            }).catch(() => {
-              new Notification(`⏰ ${t.title}`, {
-                body: t.content || 'Herinnering voor je geplande taak',
-                icon: '/Braindump-app/pwa-192x192.png'
+                tag: t.id,
+                renotify: true
               });
             });
           }
 
-          // Zorgt dat het alarm maar 1 keer afgaat en behoudt priority!
           setTasks(prev => prev.map(item => item.id === t.id ? { ...item, reminderFired: true } : item));
         }
       });
@@ -3421,10 +3411,14 @@ export default function App() {
               <div className="p-4 bg-white/90 border border-slate-200 rounded-2xl flex gap-2 shadow-2xs">
                 <input 
                   type="text" 
-                  placeholder="Of typ een snel linkje of notitie voor gsm..." 
+                  placeholder="Of typ een notitie..." 
                   value={shareText}
                   onChange={(e) => setShareText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && shareText.trim()) addSharedItem('Snelle Notitie', 'text', shareText); }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-form-type="other"
                   className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-cyan-500 font-medium"
                 />
                 <button 
@@ -3952,13 +3946,21 @@ export default function App() {
                     onKeyDown={(e) => { if (e.key === 'Enter') saveAndCloseTaskModal(); }}
                     className="w-full text-xl font-black text-slate-900 bg-transparent border-b border-transparent focus:border-slate-300 pb-1 focus:outline-none"
                     placeholder="Titel van de taak..."
-                    autoFocus
+                    autoFocus={isCreatingNewTask} // 👈 Enkel toetsenbord openen bij NIEUWE taak!
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    data-form-type="other"
                   />
                   <textarea 
                     value={editingTask.content || ''} 
                     onChange={(e) => setEditingTask({ ...editingTask, content: e.target.value })}
                     className="w-full text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none resize-none h-20"
                     placeholder="Inhoud of extra details..."
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    data-form-type="other"
                   />
 
                   {/* 👈 VOEG HIER DE PRIORITEITSKNOP TOE */}
@@ -4198,7 +4200,7 @@ export default function App() {
                   </div>
                 </div>
                 
-                {/* 2.C Mobiel Alarm & Notificatie */}
+                {/* Mobiel Alarm & Notificatie */}
                 <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -4208,24 +4210,26 @@ export default function App() {
                       <button 
                         type="button" 
                         onClick={() => setEditingTask({ ...editingTask, reminderDate: '', reminderTime: '', reminderFired: false })}
-                        className="text-[10px] text-rose-500 font-bold hover:underline"
+                        className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer"
                       >
                         Wissen
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  {/* Flex-wrap zorgt dat alles netjes binnen het kader blijft op elk scherm */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <input 
                       type="date" 
                       value={editingTask.reminderDate || ''}
                       onChange={(e) => setEditingTask({ ...editingTask, reminderDate: e.target.value, reminderFired: false })}
-                      className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
+                      className="flex-1 min-w-[120px] bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
                     />
                     <input 
                       type="time" 
                       value={editingTask.reminderTime || ''}
                       onChange={(e) => setEditingTask({ ...editingTask, reminderTime: e.target.value, reminderFired: false })}
-                      className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
+                      className="w-24 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
                     />
                   </div>
                 </div>
@@ -4537,6 +4541,13 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-70 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/60 backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
