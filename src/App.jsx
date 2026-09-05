@@ -869,6 +869,25 @@ export default function App() {
 
       const getData = await getRes.json();
 
+      let rawContent = getData.content;
+      // Als bestand te groot is (>1MB), haal de blob direct op via sha
+      if (!rawContent && getData.sha) {
+        const blobRes = await fetch(`https://api.github.com/repos/${ghUser}/${ghRepo}/git/blobs/${getData.sha}`, {
+          headers: {
+            'Authorization': `Bearer ${activeToken}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        if (blobRes.ok) {
+          const blobData = await blobRes.json();
+          rawContent = blobData.content;
+        }
+      }
+
+      if (!rawContent) {
+        throw new Error('Geen geldige kluisdata ontvangen van GitHub.');
+      }
+
       // Sla over als we exact deze versie al lokaal hebben
       if (getData.sha === currentShaRef.current) {
         if (!isBackground) {
@@ -877,7 +896,7 @@ export default function App() {
         return;
       }
 
-      const rawEncrypted = getData.content.replace(/\s/g, '');
+      const rawEncrypted = rawContent.replace(/\s/g, '');
       const decryptedJson = await decryptData(rawEncrypted, activePassword);
       const vault = JSON.parse(decryptedJson);
 
@@ -1551,22 +1570,77 @@ export default function App() {
     setShareText('');
   };
 
-  const handleShareFilePicked = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const compressImageIfNeeded = (file) => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+        resolve(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1920;
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => resolve(blob || file),
+            'image/jpeg',
+            0.82
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert("Bestand is groter dan 15MB. Kies een kleiner bestand voor snelle cloud-drop.");
+  const handleShareFilePicked = async (e) => {
+    const originalFile = e.target.files?.[0];
+    if (!originalFile) return;
+
+    // Harde limiet: waarschuw direct bij te grote bestanden i.p.v. crashen
+    if (originalFile.size > 25 * 1024 * 1024) {
+      alert("Bestand is te groot (> 25MB). Kies een kleiner bestand.");
       e.target.value = null;
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      addSharedItem(file.name, 'file', reader.result);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = null;
+    try {
+      const fileToUpload = await compressImageIfNeeded(originalFile);
+      
+      // Controleer grootte na compressie
+      if (fileToUpload.size > 2.5 * 1024 * 1024) {
+        alert("Bestand is te groot voor directe Cloud Sync (> 2.5MB na compressie). Kies een kleiner document.");
+        e.target.value = null;
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        addSharedItem(originalFile.name, 'file', reader.result);
+      };
+      reader.readAsDataURL(fileToUpload);
+    } catch (err) {
+      console.error("Fout bij verwerken bestand:", err);
+      alert("Kon bestand niet inladen: " + err.message);
+    } finally {
+      e.target.value = null;
+    }
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -2754,8 +2828,8 @@ export default function App() {
                                         draggable
                                         onDragStart={() => setDraggedTaskId(task.id)}
                                         onClick={() => openTaskModal(task)}
-                                        className="p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200"
-                                        style={{ borderLeft: `3px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                        className={`p-3 border hover:bg-white hover:shadow-xs cursor-grab transition-all space-y-1 rounded-xl bg-slate-50/90 border-slate-200 ${task.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/30' : ''}`}
+                                        style={{ borderLeft: `3px solid ${task.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
                                       >
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -2767,6 +2841,7 @@ export default function App() {
                                             >
                                               <Circle className="w-4 h-4" />
                                             </button>
+                                            {task.priority && <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500 shrink-0" />}
                                             {isMulti ? <span className="text-amber-500 font-bold">★</span> : null}
                                             {task.status === 'play' && <Play className="w-3 h-3 fill-cyan-600 text-cyan-600 shrink-0" />}
                                             {task.status === 'pause' && <Pause className="w-3 h-3 fill-amber-600 text-amber-600 shrink-0" />}
