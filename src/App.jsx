@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as ReactDOM from 'react-dom';
+
+if (typeof window !== 'undefined' && !window.ReactDOM) {
+  window.ReactDOM = ReactDOM;
+}
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
   GraduationCap, 
@@ -530,30 +535,28 @@ export default function App() {
     };
   }, []);
 
-  // Rollover check: enkel openen als de gebruiker het deze sessie nog niet heeft weggedrukt
+  // Rollover check: veilig gecontroleerd zonder externe const-afhankelijkheid
   useEffect(() => {
     if (rolloverDismissedRef.current) return;
 
     const today = new Date().toISOString().split('T')[0];
-    const overdue = tasks.filter(t => {
-      if (t.completed || !t.date || !activeCategoriesIds.includes(t.categoryId)) return false;
+    const activeCatIds = categories.filter(c => !c.archived).map(c => c.id);
 
-      // Meerdaagse taak logica:
+    const overdue = tasks.filter(t => {
+      if (t.completed || !t.date || !activeCatIds.includes(t.categoryId)) return false;
+
       if (isMultiDayTask(t)) {
-        // Als vandaag nog binnen het bereik valt (bv. loopt tot morgen), NOOIT in de rollover stoppen!
         if (today >= t.date && today <= t.endDate) return false;
-        // Enkel tonen als de einddatum definitief in het verleden ligt
         return t.endDate < today;
       }
 
-      // Gewone eendaagse taak:
       return t.date < today;
     });
 
     if (overdue.length > 0) {
       setRolloverTasks(overdue);
     }
-  }, [tasks, activeCategoriesIds]);
+  }, [tasks, categories]);
 
   // GitHub Cloud Sync Engine
   const pushToGitHub = async (isBackground = false) => {
