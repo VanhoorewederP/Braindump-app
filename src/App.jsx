@@ -2075,16 +2075,18 @@ export default function App() {
                           key={dateStr}
                           className={`p-3 rounded-2xl border transition-all ${isToday ? 'bg-cyan-50/60 border-cyan-300 ring-1 ring-cyan-400/20' : 'bg-slate-50/50 border-slate-200/80'}`}
                         >
-                          <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded-md font-mono text-xs font-black ${isToday ? 'bg-cyan-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                                {d.getDate()} {MONTH_NAMES[d.getMonth()].slice(0, 3)}
-                              </span>
-                              <span className={`text-xs font-bold capitalize ${isToday ? 'text-cyan-800 font-black' : 'text-slate-600'}`}>
+                          {/* Dagkop: Dagnaam bovenaan, datumkadertje er netjes links onder uitgelijnd */}
+                          <div className="flex items-start justify-between border-b border-slate-200/60 pb-2 mb-2">
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`text-sm font-black capitalize leading-none ${isToday ? 'text-cyan-800' : 'text-slate-800'}`}>
                                 {dayName}
                               </span>
+                              <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-black tracking-tight ${isToday ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-200/80 text-slate-700'}`}>
+                                {d.getDate()} {MONTH_NAMES[d.getMonth()].slice(0, 3)}
+                              </span>
                             </div>
-                            <span className="text-[10px] font-mono text-slate-400">
+
+                            <span className="text-[10px] font-mono text-slate-400 mt-0.5">
                               {dayTasks.length > 0 ? `${dayTasks.length} taken` : 'Leeg'}
                             </span>
                           </div>
