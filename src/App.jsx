@@ -381,6 +381,7 @@ export default function App() {
   const [diagSelectedCategories, setDiagSelectedCategories] = useState(() => categories.filter(c => c.type === 'school').map(c => c.id));
 
   // Modals & Timers
+  const rolloverDismissedRef = useRef(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [editingCategoryObj, setEditingCategoryObj] = useState(null);
   const [newCatName, setNewCatName] = useState('');
@@ -529,19 +530,30 @@ export default function App() {
     };
   }, []);
 
-  // Rollover check: controleer bij opstarten of er onvoltooide taken vóór vandaag waren
+  // Rollover check: enkel openen als de gebruiker het deze sessie nog niet heeft weggedrukt
   useEffect(() => {
+    if (rolloverDismissedRef.current) return;
+
     const today = new Date().toISOString().split('T')[0];
-    const overdue = tasks.filter(t => 
-      !t.completed && 
-      t.date && 
-      t.date < today &&
-      activeCategoriesIds.includes(t.categoryId)
-    );
+    const overdue = tasks.filter(t => {
+      if (t.completed || !t.date || !activeCategoriesIds.includes(t.categoryId)) return false;
+
+      // Meerdaagse taak logica:
+      if (isMultiDayTask(t)) {
+        // Als vandaag nog binnen het bereik valt (bv. loopt tot morgen), NOOIT in de rollover stoppen!
+        if (today >= t.date && today <= t.endDate) return false;
+        // Enkel tonen als de einddatum definitief in het verleden ligt
+        return t.endDate < today;
+      }
+
+      // Gewone eendaagse taak:
+      return t.date < today;
+    });
+
     if (overdue.length > 0) {
       setRolloverTasks(overdue);
     }
-  }, [tasks]);
+  }, [tasks, activeCategoriesIds]);
 
   // GitHub Cloud Sync Engine
   const pushToGitHub = async (isBackground = false) => {
@@ -1766,7 +1778,7 @@ export default function App() {
                 <div className="p-6 rounded-3xl bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-700 text-white shadow-xl shadow-cyan-600/20 flex items-center justify-between">
                   <div className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">
-                      Nu Bezig • Spatiebalk = Pauze
+                      Nu Bezig <span className="hidden md:inline">• Spatiebalk = Pauze</span>
                     </span>
                     <h3 className="text-xl font-black">{activePlayingTask.title}</h3>
                     {activePlayingTask.content && <p className="text-xs text-cyan-100 line-clamp-1">{activePlayingTask.content}</p>}
@@ -3997,26 +4009,67 @@ export default function App() {
 
             <div className="flex items-center gap-2 pt-2">
               <button 
+                type="button"
                 onClick={() => { 
                   const today = new Date().toISOString().split('T')[0]; 
-                  setTasks(prev => prev.map(t => rolloverTasks.some(rt => rt.id === t.id) ? { ...t, date: today, endDate: '', history: [{ action: `Herpland via Rollover naar ${today}`, timestamp: new Date().toLocaleString('nl-BE') }, ...(t.history || [])] } : t)); 
+                  setTasks(prev => prev.map(t => {
+                    const isTarget = rolloverTasks.some(rt => rt.id === t.id);
+                    if (!isTarget) return t;
+
+                    if (isMultiDayTask(t)) {
+                      // Behoud de begindatum en verleng de einddatum naar vandaag
+                      return {
+                        ...t,
+                        endDate: today,
+                        history: [
+                          { action: `Meerdaagse taak via Rollover verlengd tot ${today}`, timestamp: new Date().toLocaleString('nl-BE') },
+                          ...(t.history || [])
+                        ]
+                      };
+                    }
+
+                    // Gewone taak: verplaats de datum naar vandaag
+                    return { 
+                      ...t, 
+                      date: today, 
+                      endDate: '', 
+                      history: [
+                        { action: `Herpland via Rollover naar ${today}`, timestamp: new Date().toLocaleString('nl-BE') }, 
+                        ...(t.history || [])
+                      ] 
+                    };
+                  })); 
+
+                  rolloverDismissedRef.current = true;
                   setRolloverTasks([]); 
                 }} 
-                className="flex-1 py-2 bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md shadow-cyan-500/20"
+                className="flex-1 py-2 bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md shadow-cyan-500/20 cursor-pointer"
               >
                 Alles naar Vandaag
               </button>
               <button 
+                type="button"
                 onClick={() => {
-                  setTasks(prev => prev.map(t => rolloverTasks.some(rt => rt.id === t.id) ? { ...t, completed: true, history: [{ action: `Als voltooid gemarkeerd via Rollover`, timestamp: new Date().toLocaleString('nl-BE') }, ...(t.history || [])] } : t));
+                  setTasks(prev => prev.map(t => rolloverTasks.some(rt => rt.id === t.id) 
+                    ? { ...t, completed: true, history: [{ action: `Als voltooid gemarkeerd via Rollover`, timestamp: new Date().toLocaleString('nl-BE') }, ...(t.history || [])] } 
+                    : t
+                  ));
+                  rolloverDismissedRef.current = true;
                   setRolloverTasks([]);
                 }}
-                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl"
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer"
                 title="Markeer direct als voltooid op de eerdere datum"
               >
                 Als Voltooid Markeren
               </button>
-              <button onClick={() => setRolloverTasks([])} className="px-3 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl">
+              <button 
+                type="button"
+                onClick={() => {
+                  rolloverDismissedRef.current = true; // Blokkeert heropenen tijdens deze sessie
+                  setRolloverTasks([]);
+                }} 
+                className="px-3 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl cursor-pointer hover:bg-slate-200"
+              >
                 Later
               </button>
             </div>
