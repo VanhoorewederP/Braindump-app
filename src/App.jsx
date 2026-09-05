@@ -1605,7 +1605,7 @@ export default function App() {
 
     // Harde limiet: waarschuw direct bij te grote bestanden i.p.v. crashen
     if (originalFile.size > 25 * 1024 * 1024) {
-      alert("Bestand is te groot (> 25MB). Kies een kleiner bestand.");
+      showToast("Bestand is te groot (> 25MB). Kies een kleiner bestand.");
       e.target.value = null;
       return;
     }
@@ -1615,7 +1615,7 @@ export default function App() {
       
       // Controleer grootte na compressie
       if (fileToUpload.size > 2.5 * 1024 * 1024) {
-        alert("Bestand is te groot voor directe Cloud Sync (> 2.5MB na compressie). Kies een kleiner document.");
+        showToast("Bestand is te groot voor directe Cloud Sync (> 2.5MB na compressie). Kies een kleiner document.");
         e.target.value = null;
         return;
       }
@@ -1627,7 +1627,7 @@ export default function App() {
       reader.readAsDataURL(fileToUpload);
     } catch (err) {
       console.error("Fout bij verwerken bestand:", err);
-      alert("Kon bestand niet inladen: " + err.message);
+      showToast("Kon bestand niet inladen: " + err.message);
     } finally {
       e.target.value = null;
     }
