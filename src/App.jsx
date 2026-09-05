@@ -631,7 +631,7 @@ export default function App() {
       if (!isAnyTaskPlaying) {
         idleSeconds += 10;
         // Na 15 minuten inactiviteit (900 seconden)
-        if (idleSeconds === 900) {
+        if (idleSeconds === 9) {
           try {
             const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/plugin-notification');
             let hasPerm = await isPermissionGranted();
