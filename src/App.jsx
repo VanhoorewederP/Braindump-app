@@ -454,6 +454,9 @@ export default function App() {
       content: t.content,
       categoryId: t.categoryId,
       type: t.type,
+      priority: Boolean(t.priority), // 👈 TOEVOEGEN
+      reminderDate: t.reminderDate || '', // 👈 TOEVOEGEN
+      reminderTime: t.reminderTime || '', // 👈 TOEVOEGEN
       date: t.date,
       endDate: t.endDate,
       status: t.status,
@@ -1227,6 +1230,10 @@ export default function App() {
         changes.push(`Datum gewijzigd naar ${editingTask.date || 'Ongepland'}${editingTask.endDate ? ` tot ${editingTask.endDate}` : ''}`);
       }
       if ((editingTask.subtasks || []).length !== (originalTask.subtasks || []).length) changes.push('Subtaken bijgewerkt');
+      if (editingTask.priority !== originalTask.priority) changes.push(`Prioriteit gewijzigd naar ${editingTask.priority ? 'Hoog' : 'Normaal'}`);
+      if (editingTask.reminderTime !== originalTask.reminderTime || editingTask.reminderDate !== originalTask.reminderDate) {
+        changes.push(`Alarm ingesteld op ${editingTask.reminderDate || 'vandaag'} om ${editingTask.reminderTime || '--:--'}`);
+      }
 
       let updatedHistory = editingTask.history || [];
       if (changes.length > 0) {
@@ -2300,7 +2307,8 @@ export default function App() {
                                   <div
                                     key={t.id}
                                     onClick={() => openTaskModal(t)}
-                                    className={`p-2.5 rounded-xl border border-slate-200/90 hover:border-slate-300 bg-white shadow-xs flex items-center justify-between gap-2 cursor-pointer ${t.completed ? 'opacity-50 bg-slate-50' : ''}`}                                    style={{ borderLeft: `4px solid ${cat ? cat.color : '#0EA5E9'}` }}
+                                    className={`p-2.5 rounded-xl border transition-all bg-white shadow-xs flex items-center justify-between gap-2 cursor-pointer ${t.priority ? 'ring-2 ring-rose-500/50 bg-rose-50/30 border-rose-300' : 'border-slate-200/90 hover:border-slate-300'} ${t.completed ? 'opacity-50 bg-slate-50' : ''}`}
+                                    style={{ borderLeft: `4px solid ${t.priority ? '#EF4444' : (cat ? cat.color : '#0EA5E9')}` }}
                                   >
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                       <button 
@@ -2310,8 +2318,9 @@ export default function App() {
                                       >
                                         {t.completed ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Circle className="w-4 h-4" />}
                                       </button>
-                                      <span className={`text-xs font-bold text-slate-800 truncate ${t.completed ? 'line-through text-slate-400' : ''}`}>
-                                        {t.title}
+                                      <span className={`text-xs font-bold text-slate-800 truncate flex items-center gap-1 ${t.completed ? 'line-through text-slate-400' : ''}`}>
+                                        {t.priority && <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500 shrink-0" />}
+                                        <span className="truncate">{t.title}</span>
                                       </span>
                                     </div>
                                     {cat && renderCategoryBadge(cat)}
@@ -4144,18 +4153,31 @@ export default function App() {
                         <button
                           type="button"
                           onClick={async () => {
+                            // 1. Probeer eerst native Tauri shell indien er een lokaal pad is
                             if (isTauriDesktop && f.path) {
                               try {
-                                const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-shell');
+                                const shellPkg = '@tauri-apps/plugin-shell';
+                                const { open } = await import(/* @vite-ignore */ shellPkg);
                                 await open(f.path);
+                                return;
                               } catch (err) {
-                                console.error("Fout bij openen van bestand:", err);
+                                console.warn("Shell open fout:", err);
                               }
-                            } else if (f.url) {
-                              window.open(f.url, '_blank');
+                            }
+
+                            // 2. Universele fallback: open het bestand direct in een nieuw tabblad of trigger download
+                            if (f.url) {
+                              const link = document.createElement('a');
+                              link.href = f.url;
+                              link.download = f.name;
+                              link.target = '_blank';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
                             }
                           }}
                           className="flex items-center gap-2 font-mono text-cyan-600 hover:underline truncate flex-1 font-bold text-left cursor-pointer"
+                          title="Klik om bestand te openen"
                         >
                           <FolderOpen className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
                           <span className="truncate">{f.name}</span>
@@ -4167,32 +4189,60 @@ export default function App() {
                       </div>
                     ))}
 
-                    <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) setEditingTask({ ...editingTask, files: [...(editingTask.files || []), { name: f.name, size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`, url: URL.createObjectURL(f) }] }); e.target.value = null; }} className="hidden" />
-                    
-                    {/* 👉 HIER VERVANG JE DE KNOP "Bestand Toevoegen..." DOOR STUKJE A: */}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={(e) => { 
+                        const file = e.target.files?.[0]; 
+                        if (!file) return;
+
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setEditingTask({ 
+                            ...editingTask, 
+                            files: [
+                              ...(editingTask.files || []), 
+                              { 
+                                name: file.name, 
+                                size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`, 
+                                url: reader.result, // Base64 data zodat het bestand ECHT overal opent en bewaard blijft
+                                path: file.path || '' // Windows pad indien beschikbaar via Electron/Tauri drag
+                              }
+                            ] 
+                          });
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = null; 
+                      }} 
+                      className="hidden" 
+                    />
+
                     <button 
                       type="button" 
                       onClick={async () => {
                         if (isTauriDesktop) {
                           try {
-                            const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-dialog');
+                            const dialogPkg = '@tauri-apps/plugin-dialog';
+                            const { open } = await import(/* @vite-ignore */ dialogPkg);
                             const selected = await open({ multiple: false });
                             if (selected && typeof selected === 'string') {
                               const fileName = selected.split('\\').pop().split('/').pop();
                               setEditingTask({
                                 ...editingTask,
-                                files: [...(editingTask.files || []), { name: fileName, path: selected, url: '' }]
+                                files: [
+                                  ...(editingTask.files || []), 
+                                  { name: fileName, size: 'Lokaal', path: selected, url: '' }
+                                ]
                               });
+                              return;
                             }
                           } catch (err) {
-                            console.warn("Tauri file dialog fallback:", err);
-                            fileInputRef.current?.click();
+                            console.warn("Tauri dialog niet beschikbaar, terugvallen op systeemkiezer:", err);
                           }
-                        } else {
-                          fileInputRef.current?.click();
                         }
+                        fileInputRef.current?.click();
                       }} 
-                      className="flex items-center justify-center gap-2 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-dashed border-slate-300 cursor-pointer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-dashed border-slate-300 cursor-pointer transition"
                     >
                       <FolderOpen className="w-4 h-4 text-cyan-600" /> Bestand Toevoegen...
                     </button>
