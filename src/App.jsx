@@ -399,14 +399,45 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState({ state: 'idle', message: '' });
 
   const enableNotifications = async () => {
-    if ('Notification' in window) {
-      const perm = await Notification.requestPermission();
-      if (perm === 'granted') {
-        new Notification("Braindump", { 
-          body: "Meldingen zijn succesvol ingeschakeld!", 
-          icon: "/Braindump-app/pwa-192x192.png" 
-        });
+    if (!('Notification' in window)) {
+      alert("Deze browser ondersteunt helaas geen meldingen.");
+      return;
+    }
+
+    try {
+      let perm = Notification.permission;
+
+      if (perm === 'denied') {
+        alert("Meldingen zijn geblokkeerd in je browser. Klik linksboven in de adresbalk op het slotje/instellingen-icoon om meldingen weer toe te staan.");
+        return;
       }
+
+      if (perm !== 'granted') {
+        perm = await Notification.requestPermission();
+      }
+
+      if (perm === 'granted') {
+        // Op Android werkt meldingen tonen het beste via de actieve Service Worker
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          reg.showNotification("Braindump", {
+            body: "Meldingen en alarmen zijn ingeschakeld!",
+            icon: "/Braindump-app/pwa-192x192.png",
+            vibrate: [200, 100, 200]
+          });
+        } else {
+          new Notification("Braindump", {
+            body: "Meldingen en alarmen zijn ingeschakeld!",
+            icon: "/Braindump-app/pwa-192x192.png"
+          });
+        }
+        alert("Meldingen succesvol geactiveerd!");
+      } else {
+        alert("Toestemming voor meldingen werd geweigerd.");
+      }
+    } catch (err) {
+      console.error("Meldingen error:", err);
+      alert("Er ging iets mis bij het inschakelen: " + err.message);
     }
   };
 
@@ -447,7 +478,7 @@ export default function App() {
   const isSyncingRef = useRef(false);
 
   // Helperfunctie om taken te hashen zonder seconden/history
-  const getTaskContentHash = (taskList, catList) => {
+  const getTaskContentHash = (taskList, catList, shareList = []) => {
     const cleanTasks = (taskList || []).map(t => ({
       id: t.id,
       title: t.title,
@@ -466,12 +497,20 @@ export default function App() {
       links: t.links,
       files: t.files
     }));
-    return JSON.stringify({ tasks: cleanTasks, categories: catList || [] });
+
+    const cleanShare = (shareList || []).map(s => ({
+      id: s.id,
+      name: s.name,
+      type: s.type,
+      payload: s.payload
+    }));
+
+    return JSON.stringify({ tasks: cleanTasks, categories: catList || [], share:cleanShare });
   };
 
   // Refs direct geïnitialiseerd met de huidige data bij het opstarten
-  const lastSyncedPayloadRef = useRef(getTaskContentHash(tasks, categories));
-  const prevContentHashRef = useRef(getTaskContentHash(tasks, categories));
+  const lastSyncedPayloadRef = useRef(getTaskContentHash(tasks, categories, sharedItems));
+  const prevContentHashRef = useRef(getTaskContentHash(tasks, categories, sharedItems));
   const isFirstRender = useRef(true);
 
   const [editingTask, setEditingTask] = useState(null);
@@ -777,7 +816,7 @@ export default function App() {
       currentShaRef.current = putData.content?.sha || null;
   
       // Werk beide refs bij naar de nieuwste hash
-      const latestHash = getTaskContentHash(tasks, categories);
+      const latestHash = getTaskContentHash(tasks, categories, sharedItems);
       lastSyncedPayloadRef.current = latestHash;
       prevContentHashRef.current = latestHash;
 
@@ -849,7 +888,7 @@ export default function App() {
         if (vault.sharedItems) setSharedItems(vault.sharedItems);
         
         // Update ook de content hashes zodat de pull geen onnodige push triggert
-        const newHash = getTaskContentHash(vault.tasks, vault.categories);
+        const newHash = getTaskContentHash(vault.tasks, vault.categories, vault.sharedItems || []);
         lastSyncedPayloadRef.current = newHash;
         prevContentHashRef.current = newHash;
 
@@ -956,7 +995,7 @@ export default function App() {
 
     if (!autoSyncEnabled) return;
 
-    const currentHash = getTaskContentHash(tasks, categories);
+    const currentHash = getTaskContentHash(tasks, categories, sharedItems);
 
     // Als de inhoudelijke taken/lijsten exact hetzelfde zijn: direct stoppen
     if (currentHash === prevContentHashRef.current) {
