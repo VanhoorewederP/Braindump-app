@@ -273,13 +273,6 @@ function WorkflowLogo({ className = "w-7 h-7" }) {
 }
 
 
-const [toastMessage, setToastMessage] = useState(null);
-
-const showToast = (msg) => {
-  setToastMessage(msg);
-  setTimeout(() => setToastMessage(null), 3500);
-};
-
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pb_active_tab') || 'myday');
@@ -340,6 +333,13 @@ export default function App() {
     setTasks(updatedTasks);
   };
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   // Debugging
   const [debugLogs, setDebugLogs] = useState([]);
