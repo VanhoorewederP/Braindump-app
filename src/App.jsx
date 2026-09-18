@@ -1974,9 +1974,12 @@ export default function App() {
         <div className="absolute top-[-20%] left-[-10%] w-[650px] h-[650px] rounded-[40%] bg-gradient-to-tr from-cyan-400/25 via-teal-300/20 to-blue-500/15 blur-[120px] pointer-events-none transform -rotate-12 animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] rounded-[45%] bg-gradient-to-bl from-blue-400/20 via-sky-300/20 to-teal-400/15 blur-[130px] pointer-events-none transform rotate-45" />
 
-        {/* MOBIELE TOPBAR MET HAMBURGER (enkel zichtbaar op mobiel/browser, niet in Tauri) */}
+        {/* MOBIELE TOPBAR MET HAMBURGER (Edge-to-edge achter de statusbalk) */}
         {!isTauriDesktop && (
-          <div className="md:hidden h-14 bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-600 text-white flex items-center justify-between px-4 shrink-0 z-30 shadow-md">
+          <div 
+            style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+            className="md:hidden pb-3 bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-600 text-white flex items-center justify-between px-4 shrink-0 z-30 shadow-md"
+          >
             <button 
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}

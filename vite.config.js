@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'Braindump',
         short_name: 'Braindump',
         description: 'Persoonlijke productiviteits- en planning vault',
-        theme_color: '#0f172a',
+        theme_color: 'transparent',
         background_color: '#0f172a',
         display: 'standalone',
         start_url: '/Braindump-app/',
