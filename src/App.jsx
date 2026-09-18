@@ -670,15 +670,26 @@ export default function App() {
     };
   }, []);
 
-  // Mobile: Scroll automatisch naar vandaag bij het openen van School of Privé
+  // Mobile: Breng vandaag rustig in beeld binnen de container zonder de topbar weg te duwen
   useEffect(() => {
     if (activeTab === 'school' || activeTab === 'private') {
       setTimeout(() => {
-        const el = document.getElementById('mobile-today-row');
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const container = document.getElementById('mobile-agenda-scroll-container');
+        const todayEl = document.getElementById('mobile-today-row');
+
+        if (container && todayEl) {
+          // Bereken de positie van vandaag ten opzichte van de scroll-container
+          const containerTop = container.getBoundingClientRect().top;
+          const todayTop = todayEl.getBoundingClientRect().top;
+          const offset = todayTop - containerTop + container.scrollTop;
+
+          // Scroll enkel de lijst zelf, met een comfortabele marge van 40px bovenaan
+          container.scrollTo({
+            top: Math.max(0, offset - 40),
+            behavior: 'smooth'
+          });
         }
-      }, 200);
+      }, 250);
     }
   }, [activeTab]);
 
@@ -1988,7 +1999,7 @@ export default function App() {
         {!isTauriDesktop && (
           <div 
             style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-            className="md:hidden pb-3 bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-600 text-white flex items-center justify-between px-4 shrink-0 z-30 shadow-md"
+            className="md:hidden pb-3 bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-600 text-white flex items-center justify-between px-4 shrink-0 z-30 shadow-md sticky top-0"
           >
             <button 
               type="button"
@@ -2374,7 +2385,7 @@ export default function App() {
                   </div>
 
                   {/* Verticale agenda lijst */}
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
+                  <div id="mobile-agenda-scroll-container" className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
                     {/* Ongeplande taken */}
                     {unplannedTasks.length > 0 && (
                       <div className="p-2.5 bg-cyan-50/60 rounded-2xl border border-cyan-200/70 space-y-2">
