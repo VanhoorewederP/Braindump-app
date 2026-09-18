@@ -3255,6 +3255,7 @@ export default function App() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">GitHub Gebruikersnaam</label>
                     <input 
                       type="text" 
+                      name = "abla"
                       autoComplete='off'
                       data-lpignore="true"
                       placeholder="bv. JouwGitHubNaam"
@@ -3268,6 +3269,7 @@ export default function App() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Private Repo Naam</label>
                     <input 
                       type="text" 
+                      name = "bbla"
                       autoComplete='off'
                       data-lpignore="true"
                       placeholder="braindump-data"
@@ -3445,6 +3447,7 @@ export default function App() {
               <div className="p-4 bg-white/90 border border-slate-200 rounded-2xl flex gap-2 shadow-2xs">
                 <input 
                   type="text" 
+                  name = "cbla"
                   data-lpignore="true"
                   placeholder="Of typ een notitie..." 
                   value={shareText}
@@ -3765,6 +3768,7 @@ export default function App() {
 
               <input 
                 type="text" 
+                name = "dbla"
                 autoComplete='off'
                 data-lpignore="true"
                 placeholder="Naam (bv. Nog te bekijken, Wiskunde...)" 
@@ -3810,6 +3814,7 @@ export default function App() {
                 </div>
                 <input 
                   type="text" 
+                  name = "ebla"
                   autoComplete='off'
                   data-lpignore="true"
                   placeholder="Of typ een eigen HEX (#0EA5E9)"
@@ -3980,6 +3985,7 @@ export default function App() {
                 <div className="space-y-3">
                   <input 
                     type="text" 
+                    name = "fbla"
                     data-lpignore="true"
                     value={editingTask.title} 
                     onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
@@ -4051,6 +4057,7 @@ export default function App() {
                   <div className="flex gap-2">
                     <input 
                       type="text" 
+                      name = "gbla"
                       autoComplete='off'
                       data-lpignore="true"
                       placeholder="Voeg een subtak toe..."
@@ -4146,6 +4153,7 @@ export default function App() {
                     <div className="flex flex-wrap gap-2 items-center">
                       <input 
                         type="text"
+                        name = "hbla"
                         autoComplete='off'
                         data-lpignore="true"
                         placeholder="Dag"
@@ -4156,6 +4164,7 @@ export default function App() {
 
                       <input 
                         type="text" 
+                        name = "ibla"
                         autoComplete='off'
                         data-lpignore="true"
                         placeholder="DD/MM/JJJJ"
@@ -4320,6 +4329,7 @@ export default function App() {
                     <div className="flex gap-2">
                       <input 
                         type="text" 
+                        name = "jbla"
                         autoComplete='off'
                         data-lpignore="true"
                         placeholder="Voeg URL toe..." 
