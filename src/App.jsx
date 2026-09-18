@@ -367,12 +367,12 @@ export default function App() {
 
   const [schoolCalendarAnchorDate, setSchoolCalendarAnchorDate] = useState(() => {
     const saved = localStorage.getItem('pb_school_anchor');
-    return saved ? new Date(saved) : new Date('2026-09-01T12:00:00');
+    return saved ? new Date(saved) : new Date();
   });
 
   const [privateCalendarAnchorDate, setPrivateCalendarAnchorDate] = useState(() => {
     const saved = localStorage.getItem('pb_private_anchor');
-    return saved ? new Date(saved) : new Date('2026-09-01T12:00:00');
+    return saved ? new Date(saved) : new Date();
   });
 
   const [schoolShowCompleted, setSchoolShowCompleted] = useState(false);
@@ -670,20 +670,24 @@ export default function App() {
     };
   }, []);
 
-  // Mobile: Breng vandaag rustig in beeld binnen de container zonder de topbar weg te duwen
+  // Mobile: Zet ankerdatum altijd op vandaag en breng vandaag rustig in beeld
   useEffect(() => {
     if (activeTab === 'school' || activeTab === 'private') {
+      // 1. Zorg dat de kalender altijd de week van vandaag inlaadt
+      const now = new Date();
+      if (activeTab === 'school') setSchoolCalendarAnchorDate(now);
+      else setPrivateCalendarAnchorDate(now);
+
+      // 2. Scroll binnen de container naar het element van vandaag
       setTimeout(() => {
         const container = document.getElementById('mobile-agenda-scroll-container');
         const todayEl = document.getElementById('mobile-today-row');
 
         if (container && todayEl) {
-          // Bereken de positie van vandaag ten opzichte van de scroll-container
           const containerTop = container.getBoundingClientRect().top;
           const todayTop = todayEl.getBoundingClientRect().top;
           const offset = todayTop - containerTop + container.scrollTop;
 
-          // Scroll enkel de lijst zelf, met een comfortabele marge van 40px bovenaan
           container.scrollTo({
             top: Math.max(0, offset - 40),
             behavior: 'smooth'
