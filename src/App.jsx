@@ -275,7 +275,13 @@ function WorkflowLogo({ className = "w-7 h-7" }) {
 
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pb_active_tab') || 'myday');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Op desktop mag hij de laatste tab onthouden, op mobiel ALTIJD 'myday'
+    if (typeof window !== 'undefined' && !isTauriDesktop) {
+      return 'myday';
+    }
+    return localStorage.getItem('pb_active_tab') || 'myday';
+  });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('pb_sidebar_collapsed') === 'true');
   
   const [categories, setCategories] = useState(() => {
@@ -396,9 +402,8 @@ export default function App() {
 
     try {
       let perm = Notification.permission;
-
       if (perm === 'denied') {
-        showToast("Meldingen zijn geblokkeerd in je browser. Klik linksboven in de adresbalk op het slotje/instellingen-icoon om meldingen weer toe te staan.");
+        showToast("Meldingen zijn geblokkeerd in je browserinstellingen.");
         return;
       }
 
@@ -407,21 +412,13 @@ export default function App() {
       }
 
       if (perm === 'granted') {
-        // Op Android werkt meldingen tonen het beste via de actieve Service Worker
         if ('serviceWorker' in navigator) {
           const reg = await navigator.serviceWorker.ready;
-          reg.showNotification(t.title, {
-            body: t.content || 'Herinnering voor je geplande taak',
-            icon: '/Braindump-app/pwa-192x192.png', // Grote logo rechts
-            badge: '/Braindump-app/pwa-192x192.png', // Klein monochroom icoon in de Android statusbalk links
-            vibrate: [300, 150, 300], // Laat Android zelf trillen volgens systeemprofiel
-            tag: t.id,
-            renotify: true
-          });
-        } else {
-          new Notification("Braindump", {
-            body: "Meldingen en alarmen zijn ingeschakeld!",
-            icon: "/Braindump-app/pwa-192x192.png"
+          reg.showNotification("Braindump", {
+            body: "Meldingen en herinneringen zijn succesvol ingeschakeld!",
+            icon: "/Braindump-app/pwa-192x192.png",
+            badge: "/Braindump-app/pwa-192x192.png",
+            vibrate: [200, 100, 200]
           });
         }
         showToast("Meldingen succesvol geactiveerd!");
@@ -430,7 +427,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Meldingen error:", err);
-      showToast("Er ging iets mis bij het inschakelen: " + err.message);
+      showToast("Fout: " + err.message);
     }
   };
 
@@ -672,6 +669,18 @@ export default function App() {
       if (unlistenResize) unlistenResize();
     };
   }, []);
+
+  // Mobile: Scroll automatisch naar vandaag bij het openen van School of Privé
+  useEffect(() => {
+    if (activeTab === 'school' || activeTab === 'private') {
+      setTimeout(() => {
+        const el = document.getElementById('mobile-today-row');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 200);
+    }
+  }, [activeTab]);
 
   // Rollover check: veilig gecontroleerd zonder externe const-afhankelijkheid
   useEffect(() => {
@@ -1043,7 +1052,16 @@ export default function App() {
 
       setTasks(prev => prev.map(t => {
         if (t.status === 'play' && !t.completed) {
-          return { ...t, secondsSpent: (t.secondsSpent || 0) + elapsedSecs };
+          const curToday = new Date().toISOString().split('T')[0];
+          const curDaily = t.dailySeconds || {};
+          return { 
+            ...t, 
+            secondsSpent: (t.secondsSpent || 0) + elapsedSecs,
+            dailySeconds: {
+              ...curDaily,
+              [curToday]: (curDaily[curToday] || 0) + elapsedSecs
+            }
+          };
         }
         return t;
       }));
@@ -1632,7 +1650,12 @@ export default function App() {
       e.target.value = null;
     }
   };
+  const getTodaySeconds = (t) => {
+    if (!t.dailySeconds) return 0;
+    return t.dailySeconds[todayStr] || 0;
+  };
 
+  const totalTodayTrackedSeconds = tasks.reduce((acc, t) => acc + getTodaySeconds(t), 0);
   const todayStr = new Date().toISOString().split('T')[0];
   
   // Actieve categorieën filter
@@ -1729,7 +1752,7 @@ export default function App() {
       if (!diagSelectedCategories.includes(t.categoryId)) return false;
       if (!t.date) return diagTimeRange === 'always';
 
-      if (diagTimeRange === 'today') return isTaskOnDate(t, todayIso);
+      if (diagTimeRange === 'today') return isTaskOnDate(t, todayIso) && getTodaySeconds(t) > 0;
       if (diagTimeRange === 'week') {
         const weekAgo = new Date();
         weekAgo.setDate(now.getDate() - 7);
@@ -1753,7 +1776,10 @@ export default function App() {
   })();
 
   const diagCompletedTasks = diagTasks.filter(t => t.completed);
-  const diagTotalSeconds = diagTasks.reduce((acc, t) => acc + (t.secondsSpent || 0), 0);
+  const diagTotalSeconds = diagTasks.reduce((acc, t) => {
+    if (diagTimeRange === 'today') return acc + getTodaySeconds(t);
+    return acc + (t.secondsSpent || 0);
+  }, 0);
 
   const diagEfficiencyScore = (() => {
     if (diagTasks.length === 0) return 100;
@@ -2054,14 +2080,14 @@ export default function App() {
                 <Clock className="w-3.5 h-3.5" /> Tijd Vandaag
               </span>
               <p className="font-mono text-base font-black text-slate-900">
-                {formatTime(myDayTasks.reduce((acc, t) => acc + (t.secondsSpent || 0), 0))}
+                {formatTime(totalTodayTrackedSeconds)}
               </p>
             </div>
           ) : (
             <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-500/15 to-teal-500/15 border border-cyan-200/60 text-center space-y-0.5 shadow-xs" title="Tijd Vandaag">
               <Clock className="w-4 h-4 text-cyan-700 mx-auto" />
               <span className="block font-mono text-xs font-black text-slate-900 leading-tight">
-                {formatCollapsedTime(myDayTasks.reduce((acc, t) => acc + (t.secondsSpent || 0), 0))}
+                {formatCollapsedTime(totalTodayTrackedSeconds)}
               </span>
             </div>
           )}
@@ -2382,6 +2408,7 @@ export default function App() {
                       return (
                         <div 
                           key={dateStr}
+                          id={isToday ? "mobile-today-row" : undefined}
                           className={`p-3 rounded-2xl border transition-all ${isToday ? 'bg-cyan-50/60 border-cyan-300 ring-1 ring-cyan-400/20' : 'bg-slate-50/50 border-slate-200/80'}`}
                         >
                           {/* Dagkop: Dagnaam bovenaan, datumkadertje er netjes links onder uitgelijnd */}
@@ -3225,6 +3252,8 @@ export default function App() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">GitHub Gebruikersnaam</label>
                     <input 
                       type="text" 
+                      autoComplete='off'
+                      data-lpignore="true"
                       placeholder="bv. JouwGitHubNaam"
                       value={ghUser} 
                       onChange={(e) => setGhUser(e.target.value.trim())}
@@ -3236,6 +3265,8 @@ export default function App() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Private Repo Naam</label>
                     <input 
                       type="text" 
+                      autoComplete='off'
+                      data-lpignore="true"
                       placeholder="braindump-data"
                       value={ghRepo} 
                       onChange={(e) => setGhRepo(e.target.value.trim())}
@@ -3411,6 +3442,7 @@ export default function App() {
               <div className="p-4 bg-white/90 border border-slate-200 rounded-2xl flex gap-2 shadow-2xs">
                 <input 
                   type="text" 
+                  data-lpignore="true"
                   placeholder="Of typ een notitie..." 
                   value={shareText}
                   onChange={(e) => setShareText(e.target.value)}
@@ -3730,6 +3762,8 @@ export default function App() {
 
               <input 
                 type="text" 
+                autoComplete='off'
+                data-lpignore="true"
                 placeholder="Naam (bv. Nog te bekijken, Wiskunde...)" 
                 value={newCatName}
                 onChange={(e) => setNewCatName(e.target.value)}
@@ -3773,6 +3807,8 @@ export default function App() {
                 </div>
                 <input 
                   type="text" 
+                  autoComplete='off'
+                  data-lpignore="true"
                   placeholder="Of typ een eigen HEX (#0EA5E9)"
                   value={newCatHex}
                   onChange={(e) => setNewCatHex(e.target.value)}
@@ -3941,6 +3977,7 @@ export default function App() {
                 <div className="space-y-3">
                   <input 
                     type="text" 
+                    data-lpignore="true"
                     value={editingTask.title} 
                     onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveAndCloseTaskModal(); }}
@@ -4011,6 +4048,8 @@ export default function App() {
                   <div className="flex gap-2">
                     <input 
                       type="text" 
+                      autoComplete='off'
+                      data-lpignore="true"
                       placeholder="Voeg een subtak toe..."
                       value={newSubtaskText}
                       onChange={(e) => setNewSubtaskText(e.target.value)}
@@ -4104,6 +4143,8 @@ export default function App() {
                     <div className="flex flex-wrap gap-2 items-center">
                       <input 
                         type="text"
+                        autoComplete='off'
+                        data-lpignore="true"
                         placeholder="Dag"
                         value={dayTextInput}
                         onChange={(e) => handleDayTyped(e.target.value)}
@@ -4112,6 +4153,8 @@ export default function App() {
 
                       <input 
                         type="text" 
+                        autoComplete='off'
+                        data-lpignore="true"
                         placeholder="DD/MM/JJJJ"
                         value={dateTextInput}
                         onChange={(e) => handleDateTyped(e.target.value)}
@@ -4200,7 +4243,7 @@ export default function App() {
                   </div>
                 </div>
                 
-                {/* Mobiel Alarm & Notificatie */}
+                {/* 2.C Mobiel Alarm & Notificatie */}
                 <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -4216,8 +4259,6 @@ export default function App() {
                       </button>
                     )}
                   </div>
-                  
-                  {/* Flex-wrap zorgt dat alles netjes binnen het kader blijft op elk scherm */}
                   <div className="flex flex-wrap items-center gap-2">
                     <input 
                       type="date" 
@@ -4225,12 +4266,37 @@ export default function App() {
                       onChange={(e) => setEditingTask({ ...editingTask, reminderDate: e.target.value, reminderFired: false })}
                       className="flex-1 min-w-[120px] bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
                     />
-                    <input 
-                      type="time" 
-                      value={editingTask.reminderTime || ''}
-                      onChange={(e) => setEditingTask({ ...editingTask, reminderTime: e.target.value, reminderFired: false })}
-                      className="w-24 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
-                    />
+
+                    {/* Vaste dropdowns in plaats van de haperende Android popup-klok */}
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1">
+                      <select
+                        value={(editingTask.reminderTime || '12:00').split(':')[0] || '12'}
+                        onChange={(e) => {
+                          const currentMins = (editingTask.reminderTime || '12:00').split(':')[1] || '00';
+                          setEditingTask({ ...editingTask, reminderTime: `${e.target.value.padStart(2, '0')}:${currentMins}`, reminderFired: false });
+                        }}
+                        className="text-xs font-mono font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                      >
+                        {Array.from({ length: 24 }).map((_, h) => (
+                          <option key={h} value={String(h).padStart(2, '0')}>{String(h).padStart(2, '0')}u</option>
+                        ))}
+                      </select>
+
+                      <span className="text-slate-400 font-bold">:</span>
+
+                      <select
+                        value={(editingTask.reminderTime || '12:00').split(':')[1] || '00'}
+                        onChange={(e) => {
+                          const currentHours = (editingTask.reminderTime || '12:00').split(':')[0] || '12';
+                          setEditingTask({ ...editingTask, reminderTime: `${currentHours}:${e.target.value.padStart(2, '0')}`, reminderFired: false });
+                        }}
+                        className="text-xs font-mono font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                      >
+                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
+                          <option key={m} value={m}>{m}m</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -4251,6 +4317,8 @@ export default function App() {
                     <div className="flex gap-2">
                       <input 
                         type="text" 
+                        autoComplete='off'
+                        data-lpignore="true"
                         placeholder="Voeg URL toe..." 
                         value={newLinkInput} 
                         onChange={(e) => setNewLinkInput(e.target.value)} 
