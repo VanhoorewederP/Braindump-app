@@ -1053,14 +1053,14 @@ export default function App() {
       setTasks(prev => prev.map(t => {
         if (t.status === 'play' && !t.completed) {
           const curToday = new Date().toISOString().split('T')[0];
-          const curDaily = t.dailySeconds || {};
+          const safeDaily = (t.dailySeconds && typeof t.dailySeconds === 'object') ? { ...t.dailySeconds } : {};
+          const currentDaySecs = Number(safeDaily[curToday]) || 0;
+          safeDaily[curToday] = currentDaySecs + elapsedSecs;
+
           return { 
             ...t, 
-            secondsSpent: (t.secondsSpent || 0) + elapsedSecs,
-            dailySeconds: {
-              ...curDaily,
-              [curToday]: (curDaily[curToday] || 0) + elapsedSecs
-            }
+            secondsSpent: (Number(t.secondsSpent) || 0) + elapsedSecs,
+            dailySeconds: safeDaily
           };
         }
         return t;
@@ -1068,7 +1068,16 @@ export default function App() {
 
       setEditingTask(prev => {
         if (prev && prev.status === 'play' && !prev.completed) {
-          return { ...prev, secondsSpent: (prev.secondsSpent || 0) + elapsedSecs };
+          const curToday = new Date().toISOString().split('T')[0];
+          const safeDaily = (prev.dailySeconds && typeof prev.dailySeconds === 'object') ? { ...prev.dailySeconds } : {};
+          const currentDaySecs = Number(safeDaily[curToday]) || 0;
+          safeDaily[curToday] = currentDaySecs + elapsedSecs;
+
+          return { 
+            ...prev, 
+            secondsSpent: (Number(prev.secondsSpent) || 0) + elapsedSecs,
+            dailySeconds: safeDaily
+          };
         }
         return prev;
       });
@@ -1651,11 +1660,12 @@ export default function App() {
     }
   };
   const getTodaySeconds = (t) => {
-    if (!t.dailySeconds) return 0;
-    return t.dailySeconds[todayStr] || 0;
+    if (!t || typeof t !== 'object') return 0;
+    if (!t.dailySeconds || typeof t.dailySeconds !== 'object') return 0;
+    return Number(t.dailySeconds[todayStr]) || 0;
   };
 
-  const totalTodayTrackedSeconds = tasks.reduce((acc, t) => acc + getTodaySeconds(t), 0);
+  const totalTodayTrackedSeconds = (tasks || []).reduce((acc, t) => acc + getTodaySeconds(t), 0);
   const todayStr = new Date().toISOString().split('T')[0];
   
   // Actieve categorieën filter
