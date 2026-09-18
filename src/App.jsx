@@ -1670,13 +1670,7 @@ export default function App() {
       e.target.value = null;
     }
   };
-  const getTodaySeconds = (t) => {
-    if (!t || typeof t !== 'object') return 0;
-    if (!t.dailySeconds || typeof t.dailySeconds !== 'object') return 0;
-    return Number(t.dailySeconds[todayStr]) || 0;
-  };
-
-  const totalTodayTrackedSeconds = (tasks || []).reduce((acc, t) => acc + getTodaySeconds(t), 0);
+  
   const todayStr = new Date().toISOString().split('T')[0];
   
   // Actieve categorieën filter
@@ -1685,6 +1679,14 @@ export default function App() {
   const activePlayingTask = myDayTasks.find(t => t.status === 'play' && !t.completed);
   const queuedTodayTasks = myDayTasks.filter(t => !t.completed).sort((a, b) => (a.order || 0) - (b.order || 0));
   const completedTodayTasks = myDayTasks.filter(t => t.completed);
+
+  const getTodaySeconds = (t) => {
+    if (!t || typeof t !== 'object') return 0;
+    if (!t.dailySeconds || typeof t.dailySeconds !== 'object') return 0;
+    return Number(t.dailySeconds[todayStr]) || 0;
+  };
+
+  const totalTodayTrackedSeconds = (tasks || []).reduce((acc, t) => acc + getTodaySeconds(t), 0);
 
   const activeWorkspaceTasks = tasks.filter(t => activeCategoriesIds.includes(t.categoryId) && t.type === activeTab && (!t.completed || currentShowCompleted));
   const unplannedTasks = activeWorkspaceTasks.filter(t => !t.date && !t.completed);
